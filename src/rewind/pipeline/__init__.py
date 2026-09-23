@@ -4,10 +4,11 @@
     scan    -> what changed in a window, CloudTrail only
     plan    -> anchored chains, capability tiers, described reverts
     diff    -> a plan compared against live state
-    revert  -> the only mutating path in the tool
+    revert  -> the only module that writes
     snapshot-> record live values for later use as evidence
 
-Everything below this layer is pure or read-only. ``revert`` is the one place that writes,
+Everything below this layer is pure or read-only. ``revert`` is the one module that writes -
+``undo`` composes the others and calls it, rather than issuing anything itself -
 and it is gated three ways; see its module docstring.
 """
 

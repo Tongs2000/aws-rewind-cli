@@ -1,5 +1,6 @@
 """Command line interface.
 
+    rewind undo  --identity X --since 90m [--confirm]      # all of the below, in order
     rewind scan  --identity X --since 90m
     rewind plan  --identity X --since 90m -o plan.json [--explain]
     rewind diff  plan.json [--blame]
@@ -8,8 +9,9 @@
     rewind operations
     rewind resolvers
 
-Every command except ``revert --confirm`` is read-only. Credentials come from the ambient
-AWS configuration, the same as the AWS CLI, and nothing is ever created in the account.
+Every command is read-only except ``revert --confirm`` and ``undo --confirm``, which reach the
+same code. Credentials come from the ambient AWS configuration, the same as the AWS CLI, and
+nothing is ever created in the account.
 
 Three modules, split along the lines they are changed along: :mod:`.parser` declares the
 interface, :mod:`.context` turns arguments into AWS objects, :mod:`.commands` joins them to

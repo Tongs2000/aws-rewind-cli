@@ -216,3 +216,30 @@ def test_undo_requires_an_identity(session, capsys):
         patched(["undo", "--since", "90m"], session, capsys, live_world_after_session())
 
     assert caught.value.code == EXIT_USAGE
+
+
+# -- the offline demo -----------------------------------------------------------
+
+
+def test_the_demo_runs_offline_and_patches_a_seam_that_exists():
+    """`make demo` advertises "no credentials, no network" and was doing neither.
+
+    It set an attribute on `rewind.cli`, which stopped being the AWS seam when the CLI was
+    split into a package. Setting an attribute that nothing reads fails silently, so the
+    "offline" demo quietly reached the real API until a run without credentials exposed it.
+    This asserts the names it patches are the ones the code actually reads.
+    """
+    import pathlib
+
+    from rewind.cli import context
+
+    script = pathlib.Path(__file__).parent.parent / "tools" / "demo.py"
+    assert script.exists(), "make demo runs this file"
+    source = script.read_text()
+
+    for name in ("source", "clients"):
+        assert "context.%s = " % name in source, "the demo must patch context.%s" % name
+        assert hasattr(context, name), (
+            "context.%s does not exist, so the demo would patch nothing" % name
+        )
+    assert "rewind.cli._source" not in source and "c._source" not in source

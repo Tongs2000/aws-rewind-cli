@@ -23,9 +23,10 @@ Two guiding rules:
   never omitted. Silent omission is worse than an honest "I can see this but cannot undo
   it".
 
-> `scan`, `plan`, `diff`, `revert`, `snapshot`, `operations` and `resolvers` are
-> implemented. Everything is read-only **except** `revert --confirm`, which is the single
-> mutating code path in the tool — and it only ever touches fields a plugin vouches for.
+> `undo`, `scan`, `plan`, `diff`, `revert`, `snapshot`, `operations` and `resolvers` are
+> implemented. Everything is read-only **except** `revert --confirm` and `undo --confirm`,
+> which reach the same single mutating code path — and it only ever touches fields a plugin
+> vouches for.
 
 ---
 
@@ -42,6 +43,8 @@ permissions:
 | Command | Needs |
 |---|---|
 | `scan`, `plan` | `cloudtrail:LookupEvents` |
+| `undo` (dry run) | everything `plan` and `diff` need, below |
+| `undo --confirm` | the same as `revert --confirm`, below |
 | `plan --use-config` | the above, plus `config:DescribeConfigurationRecorderStatus`, `config:GetResourceConfigHistory`, `config:ListDiscoveredResources` |
 | `snapshot` | the Describe/Get reads below, for the resources you name |
 | `diff`, `revert` (dry run) | the above, plus `ec2:DescribeInstances`, `ec2:DescribeInstanceAttribute`, `lambda:GetProvisionedConcurrencyConfig`, `rds:DescribeDBInstances` |
@@ -555,7 +558,8 @@ script.
 
 ### `revert`
 
-The only mutating command, gated three ways.
+The mutating command, gated three ways. `undo --confirm` reaches this same code, so
+the three gates apply identically there.
 
 **1. Dry run by default.** No `--confirm`, no calls:
 
@@ -975,7 +979,7 @@ established the value to restore, and that is often somebody else.
 
 ## Tests
 
-`425 passed` in ~0.9s. No credentials, no network, sanitized fixtures only.
+`426 passed` in ~0.9s. No credentials, no network, sanitized fixtures only.
 
 ```bash
 .venv/bin/python -m pytest
@@ -992,7 +996,7 @@ established the value to restore, and that is often somebody else.
 | `test_revert.py` | 20 | dry run calling nothing, newest-first ordering, **planned calls matching issued calls**, a conflict appearing mid-run, per-field pre-checking, a silently ineffective write caught by verification, re-run idempotency |
 | `test_anchors.py` | 14 | latest-same-field wins, failed calls ignored, `responseElements` outranking everything, `NONE` only from a visible creation, the retention gap producing an honest UNKNOWN |
 | `test_chain.py` | 9 | repeated changes collapsing into one chain, **an intermediate value never becoming the revert target**, net-no-op, RDS anchoring with no history at all |
-| `test_undo.py` | 11 | **`undo` calls nothing without `--confirm`** (with the write guard proving it), the diff running even when confirming, one conflicted field not stopping the others, the plan landing on disk in a dry run, `--exit-code` |
+| `test_undo.py` | 12 | **`undo` calls nothing without `--confirm`** (with the write guard proving it), the diff running even when confirming, one conflicted field not stopping the others, the plan landing on disk in a dry run, `--exit-code`, **the offline demo patching a seam that exists** |
 | `test_extensibility.py` | 9 | a runtime-registered plugin found rather than silently treated as generic, an Actuator with a missing method not claiming AUTO |
 
 Every mutating API in the fake AWS client **raises unless a test opts in**, so a test
