@@ -10,12 +10,19 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import tempfile
 from datetime import datetime
 from typing import List, Tuple
 
 from .. import __version__
 from ..handlers import plugin_coverage
-from ..pipeline import diff_plan, plan as build_plan, scan as run_scan, take_snapshot
+from ..pipeline import (
+    diff_plan,
+    plan as build_plan,
+    scan as run_scan,
+    take_snapshot,
+    undo as run_undo,
+)
 from ..pipeline.revert import Reverter
 from ..report import (
     render_diff,
@@ -25,6 +32,7 @@ from ..report import (
     render_revert,
     render_scan,
     render_snapshot,
+    render_undo,
 )
 from ..resolvers import SetSelectorError, build_chain, default_chain, parse_set
 from ..store.plan import load as load_plan
@@ -123,6 +131,75 @@ def command_plan(args: argparse.Namespace, now: datetime) -> int:
         if args.out:
             text += "\nPlan written to %s" % args.out
         context.emit(text)
+    return EXIT_OK
+
+
+def command_undo(args: argparse.Namespace, now: datetime) -> int:
+    """plan + diff + revert, in one pass. Dry run unless --confirm."""
+    query = context.query(args, now)
+    snapshot = load_snapshot(args.snapshot) if args.snapshot else None
+    if snapshot is not None and snapshot.region and snapshot.region != query.region:
+        print(
+            "error: the snapshot was taken in %s but the plan targets %s"
+            % (snapshot.region, query.region),
+            file=sys.stderr,
+        )
+        return EXIT_USAGE
+    try:
+        resolver = build_chain(
+            snapshot=snapshot,
+            config_client=context.config_client(query.region, args),
+            assignments=dict(parse_set(a) for a in (args.assignments or [])),
+        )
+    except SetSelectorError as exc:
+        print("error: %s" % exc, file=sys.stderr)
+        return EXIT_USAGE
+
+    run = run_undo(
+        source=context.source(query.region, args),
+        clients=context.clients(query.region, args),
+        query=query,
+        resolver=resolver,
+        lookback_days=args.lookback_days,
+        confirm=args.confirm,
+        wait=not args.no_wait,
+        only=args.only,
+        now=now,
+        tool_version=__version__,
+    )
+    retention = check_retention(query.start_time, now)
+    if retention:
+        run.warnings.insert(0, retention)
+
+    # The plan is written even for a dry run: a run nobody can re-check afterwards is not
+    # much of an audit trail, and `diff`/`revert` need the document to poll an async field.
+    path = args.out
+    if path is None:
+        handle = tempfile.NamedTemporaryFile(
+            "w", suffix=".json", prefix="rewind-plan-", delete=False, encoding="utf-8"
+        )
+        path = handle.name
+        handle.close()
+    with open(path, "w", encoding="utf-8") as out:
+        json.dump(run.plan.to_dict(), out, indent=2, default=str)
+        out.write("\n")
+    run.plan_path = path
+
+    if args.log:
+        with open(args.log, "w", encoding="utf-8") as out:
+            json.dump(run.to_dict(), out, indent=2, default=str)
+            out.write("\n")
+
+    if args.output == "json":
+        context.emit(json.dumps(run.to_dict(), indent=2, default=str))
+    else:
+        text = render_undo(run, detail=args.detail)
+        if args.log:
+            text += "\nLog written to %s" % args.log
+        context.emit(text)
+
+    if args.exit_code and (run.conflicts or run.revert.unfinished):
+        return EXIT_CONFLICT
     return EXIT_OK
 
 
@@ -245,6 +322,7 @@ def command_resolvers(args: argparse.Namespace, now: datetime) -> int:
 
 COMMANDS = {
     "scan": command_scan,
+    "undo": command_undo,
     "plan": command_plan,
     "diff": command_diff,
     "revert": command_revert,

@@ -1,5 +1,6 @@
 """Orchestration: one module per verb the CLI exposes.
 
+    undo    -> plan, diff and revert in one pass (dry run unless confirmed)
     scan    -> what changed in a window, CloudTrail only
     plan    -> anchored chains, capability tiers, described reverts
     diff    -> a plan compared against live state
@@ -16,12 +17,14 @@ from .plan_build import build_chains, extract_mutations
 from .revert import Outcome, Reverter, revert_order
 from .scan import ScanResult, scan
 from .snapshot import take_snapshot
+from .undo import UndoRun, undo
 
 __all__ = [
     "DEFAULT_LOOKBACK_DAYS",
     "Outcome",
     "Reverter",
     "ScanResult",
+    "UndoRun",
     "Verdict",
     "build_chains",
     "diff_plan",
@@ -30,4 +33,5 @@ __all__ = [
     "revert_order",
     "scan",
     "take_snapshot",
+    "undo",
 ]

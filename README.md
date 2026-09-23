@@ -243,6 +243,12 @@ Confidence means:
 ## Usage
 
 ```bash
+# 0. the whole sequence in one command.  Dry run unless --confirm is passed.
+rewind undo --identity perf-agent --since 90m
+rewind undo --identity perf-agent --since 90m --confirm
+
+# or step by step, which is the same thing:
+
 # 1. what changed?  (CloudTrail only, no previous values claimed)
 rewind scan --identity perf-agent --since 90m --region us-west-1
 
@@ -281,6 +287,58 @@ rewind resolvers
 
 Windows: `--since 90m|2h|3d|1w`, or `--start`/`--end` with ISO-8601 instants.
 Output: `--output table` (default) or `--output json` for scripting.
+
+### `undo` — all of it, in one command
+
+`plan`, `diff` and `revert` back to back. **Dry run unless `--confirm` is passed**, exactly as
+`revert` alone behaves: the review step is preserved by the default, not by refusing to
+compose the steps.
+
+```
+identity   : perf-agent
+window     : 2026-09-22T17:20:00+00:00 -> 2026-09-22T17:30:00+00:00
+region     : us-west-1
+mode       : DRY RUN - nothing was called
+
+1 plan     : 8 change(s) across 6 field(s); 4 can be reverted automatically
+2 diff     : no drift in the 6 field(s) that could be compared
+3 revert   : DRY_RUN=4  SKIPPED=2
+plan       : /tmp/rewind-plan-ab12cd.json
+
+RESOURCE             FIELD                   WAS       TARGET    NOW  DIFF SAID   OUTCOME
+-------------------  ----------------------  --------  --------  ---  ----------  -------
+rewind-demo-db       multiAZ                 true      false     ?    REVERTIBLE  DRY_RUN
+rewind-demo-fn:live  provisionedConcurrency  5         NONE      ?    REVERTIBLE  DRY_RUN
+i-0aaa000000000000a  monitoring              enabled   disabled  ?    REVERTIBLE  DRY_RUN
+i-0aaa000000000000a  instanceType            t3.small  t3.micro  ?    REVERTIBLE  DRY_RUN
+
+2 field(s) still need a decision:
+  i-0bbb000000000000b   monitoring     the previous value of monitoring is not proven
+  i-0bbb000000000000b   instanceType   the previous value of instanceType is not proven
+
+Nothing was called. Re-run with --confirm to apply; live state is re-read immediately
+before each field is touched.
+```
+
+Three stages, one line each, and the table is the *revert's* view with the diff's verdict
+beside it - because "ready" and "somebody else touched this" are different reasons to leave a
+field alone. `--detail` prints each stage's own report in full instead.
+
+Two things it does that running three commands by hand tends to skip:
+
+- **the plan is written even in a dry run**, to `--out` or to a temporary file whose path is
+  printed. A run nobody can re-check afterwards is not an audit trail, and an asynchronous
+  field needs the document to be polled by a later `revert`.
+- **the diff runs before any write, including when confirming.** It is the only thing that can
+  tell "ready to revert" from "somebody else has been here since".
+
+A conflict does **not** abort the run. `revert` already refuses a conflicted field one at a
+time, having re-read it immediately beforehand, and aborting everything because one field
+drifted would leave the rest of an incident unhandled. `--exit-code` returns 3 when anything
+conflicts or still needs a decision.
+
+`--identity` is required here, as it is for `plan`: an unfiltered undo would collect the
+changes made by service-linked roles and revert them.
 
 ### `scan`
 
@@ -917,7 +975,7 @@ established the value to restore, and that is often somebody else.
 
 ## Tests
 
-`401 passed` in ~0.9s. No credentials, no network, sanitized fixtures only.
+`425 passed` in ~0.9s. No credentials, no network, sanitized fixtures only.
 
 ```bash
 .venv/bin/python -m pytest
@@ -934,6 +992,7 @@ established the value to restore, and that is often somebody else.
 | `test_revert.py` | 20 | dry run calling nothing, newest-first ordering, **planned calls matching issued calls**, a conflict appearing mid-run, per-field pre-checking, a silently ineffective write caught by verification, re-run idempotency |
 | `test_anchors.py` | 14 | latest-same-field wins, failed calls ignored, `responseElements` outranking everything, `NONE` only from a visible creation, the retention gap producing an honest UNKNOWN |
 | `test_chain.py` | 9 | repeated changes collapsing into one chain, **an intermediate value never becoming the revert target**, net-no-op, RDS anchoring with no history at all |
+| `test_undo.py` | 11 | **`undo` calls nothing without `--confirm`** (with the write guard proving it), the diff running even when confirming, one conflicted field not stopping the others, the plan landing on disk in a dry run, `--exit-code` |
 | `test_extensibility.py` | 9 | a runtime-registered plugin found rather than silently treated as generic, an Actuator with a missing method not claiming AUTO |
 
 Every mutating API in the fake AWS client **raises unless a test opts in**, so a test

@@ -125,6 +125,74 @@ def build_parser() -> argparse.ArgumentParser:
         "CloudTrail event history retention)" % RETENTION_DAYS,
     )
 
+    undo_parser = subparsers.add_parser(
+        "undo",
+        help="plan, diff and revert in one pass (dry run unless --confirm is passed)",
+        description="Runs the whole sequence: resolve previous values, compare against live "
+        "state, then revert. Dry run unless --confirm is given, exactly like `revert` alone - "
+        "the review step is preserved by the default, not by refusing to compose the steps. "
+        "The plan is always written to a file so the run stays auditable and re-checkable.",
+    )
+    _add_window_arguments(undo_parser, identity_required=True)
+    undo_parser.add_argument(
+        "--confirm",
+        action="store_true",
+        help="actually perform the revert; without this nothing is called",
+    )
+    undo_parser.add_argument(
+        "-o",
+        "--out",
+        metavar="FILE",
+        help="where to write the plan (default: a temporary file, whose path is printed)",
+    )
+    undo_parser.add_argument(
+        "--log", metavar="FILE", help="write the full result document - plan, diff and "
+        "revert - here"
+    )
+    undo_parser.add_argument(
+        "--detail",
+        action="store_true",
+        help="print each stage's own full report instead of the combined summary",
+    )
+    undo_parser.add_argument(
+        "--only",
+        metavar="CHAIN_ID",
+        action="append",
+        help="revert just this chain; repeatable",
+    )
+    undo_parser.add_argument(
+        "--no-wait",
+        action="store_true",
+        help="do not wait on EC2 stop/start waiters",
+    )
+    undo_parser.add_argument(
+        "--set",
+        metavar="SELECTOR=VALUE",
+        action="append",
+        dest="assignments",
+        help="supply a previous value the tool cannot prove; recorded as ASSERTED. Repeatable",
+    )
+    undo_parser.add_argument(
+        "--snapshot", metavar="FILE", help="a snapshot file from `rewind snapshot`"
+    )
+    undo_parser.add_argument(
+        "--use-config",
+        action="store_true",
+        help="also consult AWS Config configuration history",
+    )
+    undo_parser.add_argument(
+        "--lookback-days",
+        type=int,
+        default=DEFAULT_LOOKBACK_DAYS,
+        metavar="N",
+        help="how far back to search for evidence (default and maximum: %d)" % RETENTION_DAYS,
+    )
+    undo_parser.add_argument(
+        "--exit-code",
+        action="store_true",
+        help="exit %d when a field conflicts or still needs a decision" % EXIT_CONFLICT,
+    )
+
     diff_parser = subparsers.add_parser(
         "diff",
         help="compare a plan against live state and flag conflicts",

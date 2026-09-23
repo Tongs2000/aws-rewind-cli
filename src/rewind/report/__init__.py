@@ -12,6 +12,7 @@ from .revert import render_revert
 from .scan import render_scan
 from .snapshot import render_snapshot
 from .table import UNPROVEN
+from .undo import render_undo
 
 __all__ = [
     "UNPROVEN",
@@ -22,4 +23,5 @@ __all__ = [
     "render_revert",
     "render_scan",
     "render_snapshot",
+    "render_undo",
 ]
