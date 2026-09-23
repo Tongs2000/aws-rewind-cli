@@ -19,7 +19,7 @@ import pytest
 from rewind.pipeline.diff import Verdict, diff_plan
 from rewind.trail import CloudTrailEvent, dig
 from rewind.domain import Capability, Confidence, GENERIC_HANDLER
-from rewind.handlers import PLUGINS, register_plugin
+from rewind.handlers import Verification, PLUGINS, register_plugin
 from rewind.handlers.base import BaseHandler
 from rewind.handlers.protocols import MISMATCH, PENDING, VERIFIED, performed, step
 from rewind.store.plan import load as load_plan
@@ -147,15 +147,19 @@ class RdsBackupRetentionOperation(BaseHandler):
         clients.client("rds").modify_db_instance(**params)
         return [performed("rds:ModifyDBInstance", params)]
 
-    def verify_revert(self, clients: Any, resource_id: str, target_value: str) -> str:
+    def verify_revert(
+        self, clients: Any, resource_id: str, target_value: str
+    ) -> Verification:
+        """Returns the observed value with the verdict, so one read decides both."""
         instance = self._describe(clients, resource_id)
         pending = dig(instance, "PendingModifiedValues", "BackupRetentionPeriod")
         applied = instance.get("BackupRetentionPeriod")
-        if applied is not None and str(int(applied)) == target_value and pending is None:
-            return VERIFIED
+        seen = None if applied is None else str(int(applied))
+        if seen is not None and seen == target_value and pending is None:
+            return Verification(VERIFIED, seen)
         if pending is not None and str(int(pending)) == target_value:
-            return PENDING
-        return MISMATCH
+            return Verification(PENDING, seen)
+        return Verification(MISMATCH, seen)
 
 
 @pytest.fixture()

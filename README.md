@@ -339,7 +339,7 @@ Three deliberate choices in that table, all of them learned from real accounts:
 
 `plan` keeps `--identity` **required**, and that is a safety boundary rather than an
 inconsistency: an unfiltered plan would collect the changes made by `AWSServiceRoleForRDS`,
-`OrthancRole` and every SSM agent in the account, and describe a revert for each one.
+every audit role and every SSM agent in the account, and describe a revert for each one.
 
 ### `plan`
 

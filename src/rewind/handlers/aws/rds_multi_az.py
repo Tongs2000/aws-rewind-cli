@@ -13,7 +13,7 @@ from typing import Any, Dict, FrozenSet, List, Optional, Tuple
 from ...domain import Mutation, bool_str, optional_bool
 from ...trail import CloudTrailEvent, dig
 from ..base import BaseHandler
-from ..protocols import MISMATCH, PENDING, VERIFIED, performed, step
+from ..protocols import Verification, MISMATCH, PENDING, VERIFIED, performed, step
 
 MODIFY = "ModifyDBInstance"
 CREATE = "CreateDBInstance"
@@ -132,7 +132,9 @@ class RdsMultiAzOperation(BaseHandler):
         clients.client("rds").modify_db_instance(**params)
         return [performed("rds:ModifyDBInstance", params)]
 
-    def verify_revert(self, clients: Any, resource_id: str, target_value: str) -> str:
+    def verify_revert(
+        self, clients: Any, resource_id: str, target_value: str
+    ) -> Verification:
         """Stricter than read_live_value: has the change actually been applied?
 
         Immediately after a Multi-AZ modification the applied value is still the old one,
@@ -143,10 +145,10 @@ class RdsMultiAzOperation(BaseHandler):
         applied = bool_str(instance.get("MultiAZ"))
         pending = optional_bool(dig(instance, "PendingModifiedValues", "MultiAZ"))
         if applied == target_value and pending is None:
-            return VERIFIED
+            return Verification(VERIFIED, applied)
         if pending is not None and bool_str(pending) == target_value:
-            return PENDING
-        return MISMATCH
+            return Verification(PENDING, applied)
+        return Verification(MISMATCH, applied)
 
     def revert_plan(self, resource_id: str, target_value: str) -> Dict[str, Any]:
         target = target_value == "true"

@@ -1,0 +1,868 @@
+
+(26-09-23 20:58:02) <0> [/home/alice]
+dev-dsk-alice-2c-0000000000 % set -euo pipefail
+
+export AWS_REGION="us-west-1"
+export REWIND_SUFFIX="$(date +%y%m%d%H%M%S)"
+export PROJECT_TAG="aws-rewind-demo"
+
+aws sts get-caller-identity
+{
+    "UserId": "AROAEXAMPLE0000000001:alice-DevAccount",
+    "Account": "111122223333",
+    "Arn": "arn:aws:sts::111122223333:assumed-role/Admin/alice-DevAccount"
+}
+
+(26-09-23 20:58:08) <0> [/home/alice]
+dev-dsk-alice-2c-0000000000 % alias rewind=/home/alice/aws-rewind-cli/.venv/bin/rewind
+
+(26-09-23 20:58:56) <0> [/home/alice]
+dev-dsk-alice-2c-0000000000 % rewind scan --since 30m --region us-west-1
+/home/alice/aws-rewind-cli/.venv/lib64/python3.9/site-packages/boto3/compat.py:89: PythonDeprecationWarning: Boto3 will no longer support Python 3.9 starting April 29, 2026. To continue receiving service updates, bug fixes, and security updates please upgrade to Python 3.10 or later. More information can be found here: https://aws.amazon.com/blogs/developer/python-support-policy-updates-for-aws-sdks-and-tools/
+  warnings.warn(warning, PythonDeprecationWarning)
+identity : (all - no --identity given)
+window   : 2026-09-23T20:29:05.637610+00:00 -> 2026-09-23T20:59:05.637610+00:00
+region   : us-west-1
+events   : 177 in window (all in scope)
+changes  : 228 tracked field change(s)
+identities: 13 made a tracked change
+
+IDENTITY                                        CHANGES  RESOURCES  PLUGIN-BACKED  EVENTS
+----------------------------------------------  -------  ---------  -------------  ----------------------------------------------
+Admin/alice-DevAccount                          28       10         8              CreateAlias20150331, CreateDBInstance, Create…
+CloudAWSSystemsManager…ole/i-0aaa11112222aaa01  51       1          -              UpdateInstanceInformation
+CloudAWSSystemsManager…ole/i-0fff11112222fff06  51       1          -              UpdateInstanceInformation
+CloudAWSSystemsManager…ole/i-0bbb33334444bbb02  25       1          -              UpdateInstanceInformation
+CloudAWSSystemsManager…ole/i-0ddd77778888ddd04  25       1          -              UpdateInstanceInformation
+CloudAWSSystemsManager…ole/i-0eee99990000eee05  23       1          -              UpdateInstanceInformation
+CloudAWSSystemsManager…ole/i-0ccc55556666ccc03  16       1          -              UpdateInstanceInformation
+rewind-demo-lambda-rol…o-checkout-260923202643  3        3          -              CreateLogGroup, CreateLogStream
+AWSServiceRoleForRDS/SLRManagement              2        2          -              CreateNetworkInterface
+aws:ec2-instance/i-0bbb33334444bbb02            1        1          -              RegisterManagedInstance
+aws:ec2-instance/i-0ccc55556666ccc03            1        1          -              RegisterManagedInstance
+aws:ec2-instance/i-0ddd77778888ddd04            1        1          -              RegisterManagedInstance
+aws:ec2-instance/i-0eee99990000eee05            1        1          -              RegisterManagedInstance
+
+One row per identity, most actionable first: PLUGIN-BACKED counts the changes `rewind revert` could execute.
+Next: `rewind plan --identity <one of the above>`, or re-run `scan --detail` for every change.
+
+(26-09-23 20:59:06) <0> [/home/alice]
+dev-dsk-alice-2c-0000000000 % ID=$(aws sts get-caller-identity --query Arn --output text | awk -F/ '{print $NF}')
+
+(26-09-23 20:59:34) <0> [/home/alice]
+dev-dsk-alice-2c-0000000000 % rewind plan --identity "$ID" --since 30m --region us-west-1 --explain -o /tmp/p.json
+/home/alice/aws-rewind-cli/.venv/lib64/python3.9/site-packages/boto3/compat.py:89: PythonDeprecationWarning: Boto3 will no longer support Python 3.9 starting April 29, 2026. To continue receiving service updates, bug fixes, and security updates please upgrade to Python 3.10 or later. More information can be found here: https://aws.amazon.com/blogs/developer/python-support-policy-updates-for-aws-sdks-and-tools/
+  warnings.warn(warning, PythonDeprecationWarning)
+identity   : alice-DevAccount
+window     : 2026-09-23T20:29:57.868578+00:00 -> 2026-09-23T20:59:57.868578+00:00
+region     : us-west-1
+changes    : 28 change(s) across 28 field(s)
+revertible : 8 of 28 automatically  (0 by hand, 20 unprovable, 0 already back to original)
+capability : DISCOVERED=20 AUTO=8
+confidence : HIGH=1 MEDIUM=7 UNKNOWN=20
+warning    : The window ends less than 15 minutes ago. CloudTrail is eventually consistent, so recent changes may be missing; re-run to refresh.
+warning    : Anchor evidence older than 90 days cannot be read from CloudTrail event history. Fields last changed before then will be UNKNOWN; enable AWS Config recording, or pass the value with --set.
+
+RESOURCE                  FIELD                     BEFORE -> NOW         STEPS  CONFIDENCE  CAPABILITY  ANCHOR
+------------------------  ------------------------  --------------------  -----  ----------  ----------  -----------------
+rewind-demo-checkout-26…  CreateFunction20150331    ? -> ?                1      UNKNOWN     DISCOVERED  none
+arn:aws:lambda:us-west-…  CreateAlias20150331       ? -> ?                1      UNKNOWN     DISCOVERED  none
+rewind-demo-payments-26…  CreateDBInstance          ? -> ?                1      UNKNOWN     DISCOVERED  none
+i-0eee99990000eee05       RunInstances              ? -> ?                1      UNKNOWN     DISCOVERED  none
+i-0ccc55556666ccc03       RunInstances              ? -> ?                1      UNKNOWN     DISCOVERED  none
+i-0bbb33334444bbb02       RunInstances              ? -> ?                1      UNKNOWN     DISCOVERED  none
+i-0ddd77778888ddd04       RunInstances              ? -> ?                1      UNKNOWN     DISCOVERED  none
+i-0bbb33334444bbb02       StopInstances             ? -> ?                1      UNKNOWN     DISCOVERED  none
+i-0ddd77778888ddd04       StopInstances             ? -> ?                1      UNKNOWN     DISCOVERED  none
+i-0bbb33334444bbb02       instanceType              t3.micro -> t3.small  1      MEDIUM      AUTO        creation-event
+i-0ddd77778888ddd04       instanceType              t3.micro -> t3.small  1      MEDIUM      AUTO        creation-event
+i-0bbb33334444bbb02       StartInstances            ? -> ?                1      UNKNOWN     DISCOVERED  none
+i-0ddd77778888ddd04       StartInstances            ? -> ?                1      UNKNOWN     DISCOVERED  none
+i-0bbb33334444bbb02       TerminateInstances        ? -> ?                1      UNKNOWN     DISCOVERED  none
+i-0ddd77778888ddd04       TerminateInstances        ? -> ?                1      UNKNOWN     DISCOVERED  none
+i-0ccc55556666ccc03       TerminateInstances        ? -> ?                1      UNKNOWN     DISCOVERED  none
+i-0eee99990000eee05       TerminateInstances        ? -> ?                1      UNKNOWN     DISCOVERED  none
+i-0aaa11112222aaa01       StopInstances             ? -> ?                1      UNKNOWN     DISCOVERED  none
+i-0fff11112222fff06       StopInstances             ? -> ?                1      UNKNOWN     DISCOVERED  none
+i-0fff11112222fff06       instanceType              t3.micro -> t3.small  1      MEDIUM      AUTO        creation-event
+i-0aaa11112222aaa01       instanceType              t3.micro -> t3.small  1      MEDIUM      AUTO        creation-event
+i-0aaa11112222aaa01       StartInstances            ? -> ?                1      UNKNOWN     DISCOVERED  none
+i-0fff11112222fff06       StartInstances            ? -> ?                1      UNKNOWN     DISCOVERED  none
+rewind-demo-checkout-26…  provisionedConcurrency    NONE -> 1             1      MEDIUM      AUTO        creation-event
+rewind-demo-payments-26…  allowMajorVersionUpgrade  ? -> false            1      UNKNOWN     DISCOVERED  none
+rewind-demo-payments-26…  multiAZ                   false -> true         1      HIGH        AUTO        response-elements
+i-0aaa11112222aaa01       monitoring                disabled -> enabled   1      MEDIUM      AUTO        creation-event
+i-0fff11112222fff06       monitoring                disabled -> enabled   1      MEDIUM      AUTO        creation-event
+
+AUTO = `rewind revert` can do it.  MANUAL = a command is written out for you.
+RECONSTRUCTED = values known, no safe inverse.  DISCOVERED = change seen only.
+
+Evidence
+========
+
+chn-1b8318c6a57f  rewind-demo-checkout-260923202643.CreateFunction20150331
+  anchor     : ?  (UNKNOWN via none)
+  reason     : the value this call set is not visible in requestParameters, so neither the old nor the new value can be established
+  step 1     : 20:36:04  CreateFunction20150331: ? -> ?  [f23ac566-ee0c-46f8-a1c8-a8966dbfa4cf]
+  handled by : generic  (CreateFunction20150331)
+  revert     : not automatic - the previous value of CreateFunction20150331 is not proven
+  note       : CreateFunction20150331 does not record the new value in requestParameters, so this change is reported but cannot be reconstructed
+
+chn-34fff7022179  arn:aws:lambda:us-west-1:111122223333:function:rewind-demo-checkout-260923202643:live.CreateAlias20150331
+  anchor     : ?  (UNKNOWN via none)
+  reason     : the value this call set is not visible in requestParameters, so neither the old nor the new value can be established
+  step 1     : 20:36:05  CreateAlias20150331: ? -> ?  [c7c8f790-04bd-49a6-b8e5-3de77849aeb0]
+  handled by : generic  (CreateAlias20150331)
+  revert     : not automatic - the previous value of CreateAlias20150331 is not proven
+  note       : CreateAlias20150331 does not record the new value in requestParameters, so this change is reported but cannot be reconstructed
+
+chn-893e1059451b  rewind-demo-payments-260923202643.CreateDBInstance
+  anchor     : ?  (UNKNOWN via none)
+  reason     : the value this call set is not visible in requestParameters, so neither the old nor the new value can be established
+  step 1     : 20:36:21  CreateDBInstance: ? -> ?  [bc9fd553-9f41-42c6-afe8-00c436a623da]
+  handled by : generic  (CreateDBInstance)
+  revert     : not automatic - the previous value of CreateDBInstance is not proven
+  note       : CreateDBInstance does not record the new value in requestParameters, so this change is reported but cannot be reconstructed
+
+chn-ec47c5a04acc  i-0eee99990000eee05.RunInstances
+  anchor     : ?  (UNKNOWN via none)
+  reason     : the value this call set is not visible in requestParameters, so neither the old nor the new value can be established
+  step 1     : 20:38:42  RunInstances: ? -> ?  [be6001c4-235d-46d0-828e-8cb1922db754]
+  handled by : generic  (RunInstances)
+  revert     : not automatic - the previous value of RunInstances is not proven
+  note       : RunInstances does not record the new value in requestParameters, so this change is reported but cannot be reconstructed
+
+chn-3e0a497d95e5  i-0ccc55556666ccc03.RunInstances
+  anchor     : ?  (UNKNOWN via none)
+  reason     : the value this call set is not visible in requestParameters, so neither the old nor the new value can be established
+  step 1     : 20:38:44  RunInstances: ? -> ?  [875027a3-3143-4fa7-8987-df166a177a57]
+  handled by : generic  (RunInstances)
+  revert     : not automatic - the previous value of RunInstances is not proven
+  note       : RunInstances does not record the new value in requestParameters, so this change is reported but cannot be reconstructed
+
+chn-fa6234443885  i-0bbb33334444bbb02.RunInstances
+  anchor     : ?  (UNKNOWN via none)
+  reason     : the value this call set is not visible in requestParameters, so neither the old nor the new value can be established
+  step 1     : 20:39:47  RunInstances: ? -> ?  [26048977-1312-4726-bf46-be0bae48e171]
+  handled by : generic  (RunInstances)
+  revert     : not automatic - the previous value of RunInstances is not proven
+  note       : RunInstances does not record the new value in requestParameters, so this change is reported but cannot be reconstructed
+
+chn-b9812a206a7e  i-0ddd77778888ddd04.RunInstances
+  anchor     : ?  (UNKNOWN via none)
+  reason     : the value this call set is not visible in requestParameters, so neither the old nor the new value can be established
+  step 1     : 20:39:49  RunInstances: ? -> ?  [2e63b0a6-9d1d-4393-9195-83b2edee151a]
+  handled by : generic  (RunInstances)
+  revert     : not automatic - the previous value of RunInstances is not proven
+  note       : RunInstances does not record the new value in requestParameters, so this change is reported but cannot be reconstructed
+
+chn-a7dd42ba96c6  i-0bbb33334444bbb02.StopInstances
+  anchor     : ?  (UNKNOWN via none)
+  reason     : the value this call set is not visible in requestParameters, so neither the old nor the new value can be established
+  step 1     : 20:40:01  StopInstances: ? -> ?  [07e37d0f-d1b5-4198-a993-1fbdeb33414f]
+  handled by : generic  (StopInstances)
+  revert     : not automatic - the previous value of StopInstances is not proven
+  note       : StopInstances does not record the new value in requestParameters, so this change is reported but cannot be reconstructed
+
+chn-b3a0d78a0d04  i-0ddd77778888ddd04.StopInstances
+  anchor     : ?  (UNKNOWN via none)
+  reason     : the value this call set is not visible in requestParameters, so neither the old nor the new value can be established
+  step 1     : 20:40:01  StopInstances: ? -> ?  [07e37d0f-d1b5-4198-a993-1fbdeb33414f]
+  handled by : generic  (StopInstances)
+  revert     : not automatic - the previous value of StopInstances is not proven
+  note       : StopInstances does not record the new value in requestParameters, so this change is reported but cannot be reconstructed
+
+chn-527d2dc2a7b2  i-0bbb33334444bbb02.instanceType
+  anchor     : t3.micro  (MEDIUM via creation-event)
+  reason     : initial value from RunInstances; no event changed this field between creation and the session
+  evidence   : 26048977-1312-4726-bf46-be0bae48e171
+  step 1     : 20:40:34  ModifyInstanceAttribute: t3.micro -> t3.small  [5873c7e5-f838-4d72-95af-4ebe4251f0cf]
+  handled by : SET_EC2_INSTANCE_TYPE  (ModifyInstanceAttribute)
+  revert to  : t3.micro  via ec2:StopInstances, ec2:ModifyInstanceAttribute, ec2:StartInstances
+
+chn-f1f79259729d  i-0ddd77778888ddd04.instanceType
+  anchor     : t3.micro  (MEDIUM via creation-event)
+  reason     : initial value from RunInstances; no event changed this field between creation and the session
+  evidence   : 2e63b0a6-9d1d-4393-9195-83b2edee151a
+  step 1     : 20:40:35  ModifyInstanceAttribute: t3.micro -> t3.small  [b23b259f-7b9f-4155-a611-2c1c32807ac6]
+  handled by : SET_EC2_INSTANCE_TYPE  (ModifyInstanceAttribute)
+  revert to  : t3.micro  via ec2:StopInstances, ec2:ModifyInstanceAttribute, ec2:StartInstances
+
+chn-4da4eb4f2ff6  i-0bbb33334444bbb02.StartInstances
+  anchor     : ?  (UNKNOWN via none)
+  reason     : the value this call set is not visible in requestParameters, so neither the old nor the new value can be established
+  step 1     : 20:40:36  StartInstances: ? -> ?  [fa1f7555-fd12-4f5f-bb49-94767e2854f5]
+  handled by : generic  (StartInstances)
+  revert     : not automatic - the previous value of StartInstances is not proven
+  note       : StartInstances does not record the new value in requestParameters, so this change is reported but cannot be reconstructed
+
+chn-d7bc27a5a9af  i-0ddd77778888ddd04.StartInstances
+  anchor     : ?  (UNKNOWN via none)
+  reason     : the value this call set is not visible in requestParameters, so neither the old nor the new value can be established
+  step 1     : 20:40:36  StartInstances: ? -> ?  [fa1f7555-fd12-4f5f-bb49-94767e2854f5]
+  handled by : generic  (StartInstances)
+  revert     : not automatic - the previous value of StartInstances is not proven
+  note       : StartInstances does not record the new value in requestParameters, so this change is reported but cannot be reconstructed
+
+chn-3ffded560190  i-0bbb33334444bbb02.TerminateInstances
+  anchor     : ?  (UNKNOWN via none)
+  reason     : the value this call set is not visible in requestParameters, so neither the old nor the new value can be established
+  step 1     : 20:45:28  TerminateInstances: ? -> ?  [49ee2dc8-d615-40a5-9477-b33700b17c25]
+  handled by : generic  (TerminateInstances)
+  revert     : not automatic - the previous value of TerminateInstances is not proven
+  note       : TerminateInstances does not record the new value in requestParameters, so this change is reported but cannot be reconstructed
+
+chn-5f5f7d327d8f  i-0ddd77778888ddd04.TerminateInstances
+  anchor     : ?  (UNKNOWN via none)
+  reason     : the value this call set is not visible in requestParameters, so neither the old nor the new value can be established
+  step 1     : 20:45:28  TerminateInstances: ? -> ?  [49ee2dc8-d615-40a5-9477-b33700b17c25]
+  handled by : generic  (TerminateInstances)
+  revert     : not automatic - the previous value of TerminateInstances is not proven
+  note       : TerminateInstances does not record the new value in requestParameters, so this change is reported but cannot be reconstructed
+
+chn-26b5a190fddb  i-0ccc55556666ccc03.TerminateInstances
+  anchor     : ?  (UNKNOWN via none)
+  reason     : the value this call set is not visible in requestParameters, so neither the old nor the new value can be established
+  step 1     : 20:46:35  TerminateInstances: ? -> ?  [9af0823a-1216-4666-a0ee-1308aca141c5]
+  handled by : generic  (TerminateInstances)
+  revert     : not automatic - the previous value of TerminateInstances is not proven
+  note       : TerminateInstances does not record the new value in requestParameters, so this change is reported but cannot be reconstructed
+
+chn-a8d5011602ac  i-0eee99990000eee05.TerminateInstances
+  anchor     : ?  (UNKNOWN via none)
+  reason     : the value this call set is not visible in requestParameters, so neither the old nor the new value can be established
+  step 1     : 20:46:35  TerminateInstances: ? -> ?  [9af0823a-1216-4666-a0ee-1308aca141c5]
+  handled by : generic  (TerminateInstances)
+  revert     : not automatic - the previous value of TerminateInstances is not proven
+  note       : TerminateInstances does not record the new value in requestParameters, so this change is reported but cannot be reconstructed
+
+chn-3b99ba2cde8e  i-0aaa11112222aaa01.StopInstances
+  anchor     : ?  (UNKNOWN via none)
+  reason     : the value this call set is not visible in requestParameters, so neither the old nor the new value can be established
+  step 1     : 20:48:59  StopInstances: ? -> ?  [37737a64-ce6f-4ba8-b15d-2e267fa9ff1c]
+  handled by : generic  (StopInstances)
+  revert     : not automatic - the previous value of StopInstances is not proven
+  note       : StopInstances does not record the new value in requestParameters, so this change is reported but cannot be reconstructed
+
+chn-0f97fd72eb71  i-0fff11112222fff06.StopInstances
+  anchor     : ?  (UNKNOWN via none)
+  reason     : the value this call set is not visible in requestParameters, so neither the old nor the new value can be established
+  step 1     : 20:48:59  StopInstances: ? -> ?  [37737a64-ce6f-4ba8-b15d-2e267fa9ff1c]
+  handled by : generic  (StopInstances)
+  revert     : not automatic - the previous value of StopInstances is not proven
+  note       : StopInstances does not record the new value in requestParameters, so this change is reported but cannot be reconstructed
+
+chn-dc12a435024b  i-0fff11112222fff06.instanceType
+  anchor     : t3.micro  (MEDIUM via creation-event)
+  reason     : initial value from RunInstances; no event changed this field between creation and the session
+  evidence   : 56ca22b9-d27e-4409-8a4f-a288348d4c65
+  step 1     : 20:49:32  ModifyInstanceAttribute: t3.micro -> t3.small  [05bdce5f-587f-486d-b9cc-4946680c3e27]
+  handled by : SET_EC2_INSTANCE_TYPE  (ModifyInstanceAttribute)
+  revert to  : t3.micro  via ec2:StopInstances, ec2:ModifyInstanceAttribute, ec2:StartInstances
+
+chn-91174b46698c  i-0aaa11112222aaa01.instanceType
+  anchor     : t3.micro  (MEDIUM via creation-event)
+  reason     : initial value from RunInstances; no event changed this field between creation and the session
+  evidence   : 50d2fef2-9663-43c3-bb38-dbe6af7c48b4
+  step 1     : 20:49:33  ModifyInstanceAttribute: t3.micro -> t3.small  [ef2c67ee-816b-4dea-a359-394ad2ab11ba]
+  handled by : SET_EC2_INSTANCE_TYPE  (ModifyInstanceAttribute)
+  revert to  : t3.micro  via ec2:StopInstances, ec2:ModifyInstanceAttribute, ec2:StartInstances
+
+chn-76b5a43277a6  i-0aaa11112222aaa01.StartInstances
+  anchor     : ?  (UNKNOWN via none)
+  reason     : the value this call set is not visible in requestParameters, so neither the old nor the new value can be established
+  step 1     : 20:49:34  StartInstances: ? -> ?  [c6591325-463f-486b-b57a-6e5ed300e470]
+  handled by : generic  (StartInstances)
+  revert     : not automatic - the previous value of StartInstances is not proven
+  note       : StartInstances does not record the new value in requestParameters, so this change is reported but cannot be reconstructed
+
+chn-57b94f12cd14  i-0fff11112222fff06.StartInstances
+  anchor     : ?  (UNKNOWN via none)
+  reason     : the value this call set is not visible in requestParameters, so neither the old nor the new value can be established
+  step 1     : 20:49:34  StartInstances: ? -> ?  [c6591325-463f-486b-b57a-6e5ed300e470]
+  handled by : generic  (StartInstances)
+  revert     : not automatic - the previous value of StartInstances is not proven
+  note       : StartInstances does not record the new value in requestParameters, so this change is reported but cannot be reconstructed
+
+chn-b6b1765a76ce  rewind-demo-checkout-260923202643:live.provisionedConcurrency
+  anchor     : NONE  (MEDIUM via creation-event)
+  reason     : initial value from CreateFunction20150331; no event changed this field between creation and the session
+  evidence   : f23ac566-ee0c-46f8-a1c8-a8966dbfa4cf
+  step 1     : 20:50:02  PutProvisionedConcurrencyConfig: NONE -> 1  [46ec22ad-3863-4292-a21c-2fd608c7401b]
+  handled by : SET_LAMBDA_PROVISIONED_CONCURRENCY  (PutProvisionedConcurrencyConfig)
+  revert to  : NONE  via lambda:DeleteProvisionedConcurrencyConfig
+
+chn-1df9abe06b3a  rewind-demo-payments-260923202643.allowMajorVersionUpgrade
+  anchor     : ?  (UNKNOWN via none)
+  reason     : no resolver could prove the previous value of allowMajorVersionUpgrade on rewind-demo-payments-260923202643 (response-elements: the ModifyDBInstance response does not carry a pre-change allowMajorVersionUpgrade; config-history: not enabled (pass --use-config); local-snapshot: no snapshot file was supplied (--snapshot); cloudtrail-window: no earlier successful event in the window sets allowMajorVersionUpgrade on rewind-demo-payments-260923202643; creation-event: no creation event is defined for generic; operator-supplied: no --set values were supplied)
+  step 1     : 20:50:15  ModifyDBInstance: ? -> false  [2503fe02-1e5e-41ff-ba0f-e249a13919a3]
+  handled by : generic  (ModifyDBInstance)
+  revert     : not automatic - the previous value of allowMajorVersionUpgrade is not proven
+  note       : not revertible automatically: the previous value is not proven. Supply it explicitly with --set to revert anyway.
+
+chn-61f9005b0834  rewind-demo-payments-260923202643.multiAZ
+  anchor     : false  (HIGH via response-elements)
+  reason     : pre-change value read from the change event's own responseElements
+  evidence   : 2503fe02-1e5e-41ff-ba0f-e249a13919a3
+  step 1     : 20:50:15  ModifyDBInstance: false -> true  [2503fe02-1e5e-41ff-ba0f-e249a13919a3]
+  handled by : SET_RDS_MULTI_AZ  (ModifyDBInstance)
+  revert to  : false  via rds:ModifyDBInstance
+  note       : SET_RDS_MULTI_AZ is applied asynchronously by AWS; a revert is reported as submitted until a Describe call confirms it
+
+chn-18af3316d78f  i-0aaa11112222aaa01.monitoring
+  anchor     : disabled  (MEDIUM via creation-event)
+  reason     : initial value from RunInstances; no event changed this field between creation and the session
+  evidence   : 50d2fef2-9663-43c3-bb38-dbe6af7c48b4
+  step 1     : 20:51:16  MonitorInstances: disabled -> enabled  [dd2abcaf-bbd5-45d8-a092-5b53cca68d5b]
+  handled by : SET_EC2_DETAILED_MONITORING  (MonitorInstances)
+  revert to  : disabled  via ec2:UnmonitorInstances
+
+chn-665d0e86880e  i-0fff11112222fff06.monitoring
+  anchor     : disabled  (MEDIUM via creation-event)
+  reason     : initial value from RunInstances; no event changed this field between creation and the session
+  evidence   : 56ca22b9-d27e-4409-8a4f-a288348d4c65
+  step 1     : 20:51:16  MonitorInstances: disabled -> enabled  [dd2abcaf-bbd5-45d8-a092-5b53cca68d5b]
+  handled by : SET_EC2_DETAILED_MONITORING  (MonitorInstances)
+  revert to  : disabled  via ec2:UnmonitorInstances
+
+Next: `rewind diff <plan.json>` to compare against live state.
+Plan written to /tmp/p.json
+
+(26-09-23 21:00:09) <0> [/home/alice]
+dev-dsk-alice-2c-0000000000 % rewind diff /tmp/p.json
+plan       : /tmp/p.json
+generated  : 2026-09-23T20:59:57+00:00  by identity alice-DevAccount in us-west-1
+checked    : 2026-09-23T21:00:22.612651+00:00
+fields     : 28
+verdicts   : REVERTIBLE=8  UNCHECKABLE=20
+drift      : none - 8 of 28 field(s) compared, all still as the session left them
+
+RESOURCE                      FIELD                     WAS       SESSION SET  LIVE NOW  VERDICT
+----------------------------  ------------------------  --------  -----------  --------  -----------
+rewind-demo-checkout-260923…  CreateFunction20150331    ?         ?            ?         UNCHECKABLE
+arn:aws:lambda:us-west-1:18…  CreateAlias20150331       ?         ?            ?         UNCHECKABLE
+rewind-demo-payments-260923…  CreateDBInstance          ?         ?            ?         UNCHECKABLE
+i-0eee99990000eee05           RunInstances              ?         ?            ?         UNCHECKABLE
+i-0ccc55556666ccc03           RunInstances              ?         ?            ?         UNCHECKABLE
+i-0bbb33334444bbb02           RunInstances              ?         ?            ?         UNCHECKABLE
+i-0ddd77778888ddd04           RunInstances              ?         ?            ?         UNCHECKABLE
+i-0bbb33334444bbb02           StopInstances             ?         ?            ?         UNCHECKABLE
+i-0ddd77778888ddd04           StopInstances             ?         ?            ?         UNCHECKABLE
+i-0bbb33334444bbb02           instanceType              t3.micro  t3.small     t3.small  REVERTIBLE
+i-0ddd77778888ddd04           instanceType              t3.micro  t3.small     t3.small  REVERTIBLE
+i-0bbb33334444bbb02           StartInstances            ?         ?            ?         UNCHECKABLE
+i-0ddd77778888ddd04           StartInstances            ?         ?            ?         UNCHECKABLE
+i-0bbb33334444bbb02           TerminateInstances        ?         ?            ?         UNCHECKABLE
+i-0ddd77778888ddd04           TerminateInstances        ?         ?            ?         UNCHECKABLE
+i-0ccc55556666ccc03           TerminateInstances        ?         ?            ?         UNCHECKABLE
+i-0eee99990000eee05           TerminateInstances        ?         ?            ?         UNCHECKABLE
+i-0aaa11112222aaa01           StopInstances             ?         ?            ?         UNCHECKABLE
+i-0fff11112222fff06           StopInstances             ?         ?            ?         UNCHECKABLE
+i-0fff11112222fff06           instanceType              t3.micro  t3.small     t3.small  REVERTIBLE
+i-0aaa11112222aaa01           instanceType              t3.micro  t3.small     t3.small  REVERTIBLE
+i-0aaa11112222aaa01           StartInstances            ?         ?            ?         UNCHECKABLE
+i-0fff11112222fff06           StartInstances            ?         ?            ?         UNCHECKABLE
+rewind-demo-checkout-260923…  provisionedConcurrency    NONE      1            1         REVERTIBLE
+rewind-demo-payments-260923…  allowMajorVersionUpgrade  ?         false        ?         UNCHECKABLE
+rewind-demo-payments-260923…  multiAZ                   false     true         true      REVERTIBLE
+i-0aaa11112222aaa01           monitoring                disabled  enabled      enabled   REVERTIBLE
+i-0fff11112222fff06           monitoring                disabled  enabled      enabled   REVERTIBLE
+
+Details
+=======
+
+chn-1b8318c6a57f  rewind-demo-checkout-260923202643.CreateFunction20150331  [UNCHECKABLE]
+  no plugin knows which Describe/Get call reads CreateFunction20150331 on rewind-demo-checkout-260923202643, so drift cannot be checked. The plan still records what changed.
+
+chn-34fff7022179  arn:aws:lambda:us-west-1:111122223333:function:rewind-demo-checkout-260923202643:live.CreateAlias20150331  [UNCHECKABLE]
+  no plugin knows which Describe/Get call reads CreateAlias20150331 on arn:aws:lambda:us-west-1:111122223333:function:rewind-demo-checkout-260923202643:live, so drift cannot be checked. The plan still records what changed.
+
+chn-893e1059451b  rewind-demo-payments-260923202643.CreateDBInstance  [UNCHECKABLE]
+  no plugin knows which Describe/Get call reads CreateDBInstance on rewind-demo-payments-260923202643, so drift cannot be checked. The plan still records what changed.
+
+chn-ec47c5a04acc  i-0eee99990000eee05.RunInstances  [UNCHECKABLE]
+  no plugin knows which Describe/Get call reads RunInstances on i-0eee99990000eee05, so drift cannot be checked. The plan still records what changed.
+
+chn-3e0a497d95e5  i-0ccc55556666ccc03.RunInstances  [UNCHECKABLE]
+  no plugin knows which Describe/Get call reads RunInstances on i-0ccc55556666ccc03, so drift cannot be checked. The plan still records what changed.
+
+chn-fa6234443885  i-0bbb33334444bbb02.RunInstances  [UNCHECKABLE]
+  no plugin knows which Describe/Get call reads RunInstances on i-0bbb33334444bbb02, so drift cannot be checked. The plan still records what changed.
+
+chn-b9812a206a7e  i-0ddd77778888ddd04.RunInstances  [UNCHECKABLE]
+  no plugin knows which Describe/Get call reads RunInstances on i-0ddd77778888ddd04, so drift cannot be checked. The plan still records what changed.
+
+chn-a7dd42ba96c6  i-0bbb33334444bbb02.StopInstances  [UNCHECKABLE]
+  no plugin knows which Describe/Get call reads StopInstances on i-0bbb33334444bbb02, so drift cannot be checked. The plan still records what changed.
+
+chn-b3a0d78a0d04  i-0ddd77778888ddd04.StopInstances  [UNCHECKABLE]
+  no plugin knows which Describe/Get call reads StopInstances on i-0ddd77778888ddd04, so drift cannot be checked. The plan still records what changed.
+
+chn-4da4eb4f2ff6  i-0bbb33334444bbb02.StartInstances  [UNCHECKABLE]
+  no plugin knows which Describe/Get call reads StartInstances on i-0bbb33334444bbb02, so drift cannot be checked. The plan still records what changed.
+
+chn-d7bc27a5a9af  i-0ddd77778888ddd04.StartInstances  [UNCHECKABLE]
+  no plugin knows which Describe/Get call reads StartInstances on i-0ddd77778888ddd04, so drift cannot be checked. The plan still records what changed.
+
+chn-3ffded560190  i-0bbb33334444bbb02.TerminateInstances  [UNCHECKABLE]
+  no plugin knows which Describe/Get call reads TerminateInstances on i-0bbb33334444bbb02, so drift cannot be checked. The plan still records what changed.
+
+chn-5f5f7d327d8f  i-0ddd77778888ddd04.TerminateInstances  [UNCHECKABLE]
+  no plugin knows which Describe/Get call reads TerminateInstances on i-0ddd77778888ddd04, so drift cannot be checked. The plan still records what changed.
+
+chn-26b5a190fddb  i-0ccc55556666ccc03.TerminateInstances  [UNCHECKABLE]
+  no plugin knows which Describe/Get call reads TerminateInstances on i-0ccc55556666ccc03, so drift cannot be checked. The plan still records what changed.
+
+chn-a8d5011602ac  i-0eee99990000eee05.TerminateInstances  [UNCHECKABLE]
+  no plugin knows which Describe/Get call reads TerminateInstances on i-0eee99990000eee05, so drift cannot be checked. The plan still records what changed.
+
+chn-3b99ba2cde8e  i-0aaa11112222aaa01.StopInstances  [UNCHECKABLE]
+  no plugin knows which Describe/Get call reads StopInstances on i-0aaa11112222aaa01, so drift cannot be checked. The plan still records what changed.
+
+chn-0f97fd72eb71  i-0fff11112222fff06.StopInstances  [UNCHECKABLE]
+  no plugin knows which Describe/Get call reads StopInstances on i-0fff11112222fff06, so drift cannot be checked. The plan still records what changed.
+
+chn-76b5a43277a6  i-0aaa11112222aaa01.StartInstances  [UNCHECKABLE]
+  no plugin knows which Describe/Get call reads StartInstances on i-0aaa11112222aaa01, so drift cannot be checked. The plan still records what changed.
+
+chn-57b94f12cd14  i-0fff11112222fff06.StartInstances  [UNCHECKABLE]
+  no plugin knows which Describe/Get call reads StartInstances on i-0fff11112222fff06, so drift cannot be checked. The plan still records what changed.
+
+chn-1df9abe06b3a  rewind-demo-payments-260923202643.allowMajorVersionUpgrade  [UNCHECKABLE]
+  no plugin knows which Describe/Get call reads allowMajorVersionUpgrade on rewind-demo-payments-260923202643, so drift cannot be checked. The plan still records what changed.
+
+8 field(s) are ready to revert. Next: `rewind revert /tmp/p.json` for a dry run, then add --confirm.
+
+(26-09-23 21:00:25) <0> [/home/alice]
+dev-dsk-alice-2c-0000000000 % rewind revert /tmp/p.json
+plan       : /tmp/p.json
+mode       : DRY RUN - nothing was called
+region     : us-west-1
+started    : 2026-09-23T21:00:36.210959+00:00
+fields     : 28  (newest change reverted first)
+outcomes   : DRY_RUN=8  SKIPPED=20
+
+RESOURCE                      FIELD                     WAS       TARGET    NOW  OUTCOME
+----------------------------  ------------------------  --------  --------  ---  -------
+i-0fff11112222fff06           monitoring                enabled   disabled  ?    DRY_RUN
+i-0aaa11112222aaa01           monitoring                enabled   disabled  ?    DRY_RUN
+rewind-demo-payments-260923…  multiAZ                   true      false     ?    DRY_RUN
+rewind-demo-payments-260923…  allowMajorVersionUpgrade  ?         ?         ?    SKIPPED
+rewind-demo-checkout-260923…  provisionedConcurrency    1         NONE      ?    DRY_RUN
+i-0aaa11112222aaa01           StartInstances            ?         ?         ?    SKIPPED
+i-0fff11112222fff06           StartInstances            ?         ?         ?    SKIPPED
+i-0aaa11112222aaa01           instanceType              t3.small  t3.micro  ?    DRY_RUN
+i-0fff11112222fff06           instanceType              t3.small  t3.micro  ?    DRY_RUN
+i-0aaa11112222aaa01           StopInstances             ?         ?         ?    SKIPPED
+i-0fff11112222fff06           StopInstances             ?         ?         ?    SKIPPED
+i-0eee99990000eee05           TerminateInstances        ?         ?         ?    SKIPPED
+i-0ccc55556666ccc03           TerminateInstances        ?         ?         ?    SKIPPED
+i-0ddd77778888ddd04           TerminateInstances        ?         ?         ?    SKIPPED
+i-0bbb33334444bbb02           TerminateInstances        ?         ?         ?    SKIPPED
+i-0ddd77778888ddd04           StartInstances            ?         ?         ?    SKIPPED
+i-0bbb33334444bbb02           StartInstances            ?         ?         ?    SKIPPED
+i-0ddd77778888ddd04           instanceType              t3.small  t3.micro  ?    DRY_RUN
+i-0bbb33334444bbb02           instanceType              t3.small  t3.micro  ?    DRY_RUN
+i-0ddd77778888ddd04           StopInstances             ?         ?         ?    SKIPPED
+i-0bbb33334444bbb02           StopInstances             ?         ?         ?    SKIPPED
+i-0ddd77778888ddd04           RunInstances              ?         ?         ?    SKIPPED
+i-0bbb33334444bbb02           RunInstances              ?         ?         ?    SKIPPED
+i-0ccc55556666ccc03           RunInstances              ?         ?         ?    SKIPPED
+i-0eee99990000eee05           RunInstances              ?         ?         ?    SKIPPED
+rewind-demo-payments-260923…  CreateDBInstance          ?         ?         ?    SKIPPED
+arn:aws:lambda:us-west-1:18…  CreateAlias20150331       ?         ?         ?    SKIPPED
+rewind-demo-checkout-260923…  CreateFunction20150331    ?         ?         ?    SKIPPED
+
+Details
+=======
+
+chn-665d0e86880e  i-0fff11112222fff06.monitoring  [DRY_RUN]
+  would restore 'disabled'; nothing was called (pass --confirm to apply)
+  would call ec2:UnmonitorInstances
+
+chn-18af3316d78f  i-0aaa11112222aaa01.monitoring  [DRY_RUN]
+  would restore 'disabled'; nothing was called (pass --confirm to apply)
+  would call ec2:UnmonitorInstances
+
+chn-61f9005b0834  rewind-demo-payments-260923202643.multiAZ  [DRY_RUN]
+  would restore 'false'; nothing was called (pass --confirm to apply)
+  would call rds:ModifyDBInstance
+
+chn-1df9abe06b3a  rewind-demo-payments-260923202643.allowMajorVersionUpgrade  [SKIPPED]
+  the previous value of allowMajorVersionUpgrade is not proven
+
+chn-b6b1765a76ce  rewind-demo-checkout-260923202643:live.provisionedConcurrency  [DRY_RUN]
+  would restore 'NONE'; nothing was called (pass --confirm to apply)
+  would call lambda:DeleteProvisionedConcurrencyConfig
+
+chn-76b5a43277a6  i-0aaa11112222aaa01.StartInstances  [SKIPPED]
+  the previous value of StartInstances is not proven
+
+chn-57b94f12cd14  i-0fff11112222fff06.StartInstances  [SKIPPED]
+  the previous value of StartInstances is not proven
+
+chn-91174b46698c  i-0aaa11112222aaa01.instanceType  [DRY_RUN]
+  would restore 't3.micro'; nothing was called (pass --confirm to apply)
+  would call ec2:StopInstances  # EC2 rejects a change to instanceType on a running instance
+  would call ec2:ModifyInstanceAttribute
+  would call ec2:StartInstances  # only if the instance is running when the revert starts
+  warning    instanceType can only be changed while the instance is stopped, so reverting it stops and restarts the instance; instance-store data is lost and public IPv4 addresses can change
+
+chn-dc12a435024b  i-0fff11112222fff06.instanceType  [DRY_RUN]
+  would restore 't3.micro'; nothing was called (pass --confirm to apply)
+  would call ec2:StopInstances  # EC2 rejects a change to instanceType on a running instance
+  would call ec2:ModifyInstanceAttribute
+  would call ec2:StartInstances  # only if the instance is running when the revert starts
+  warning    instanceType can only be changed while the instance is stopped, so reverting it stops and restarts the instance; instance-store data is lost and public IPv4 addresses can change
+
+chn-3b99ba2cde8e  i-0aaa11112222aaa01.StopInstances  [SKIPPED]
+  the previous value of StopInstances is not proven
+
+chn-0f97fd72eb71  i-0fff11112222fff06.StopInstances  [SKIPPED]
+  the previous value of StopInstances is not proven
+
+chn-a8d5011602ac  i-0eee99990000eee05.TerminateInstances  [SKIPPED]
+  the previous value of TerminateInstances is not proven
+
+chn-26b5a190fddb  i-0ccc55556666ccc03.TerminateInstances  [SKIPPED]
+  the previous value of TerminateInstances is not proven
+
+chn-5f5f7d327d8f  i-0ddd77778888ddd04.TerminateInstances  [SKIPPED]
+  the previous value of TerminateInstances is not proven
+
+chn-3ffded560190  i-0bbb33334444bbb02.TerminateInstances  [SKIPPED]
+  the previous value of TerminateInstances is not proven
+
+chn-d7bc27a5a9af  i-0ddd77778888ddd04.StartInstances  [SKIPPED]
+  the previous value of StartInstances is not proven
+
+chn-4da4eb4f2ff6  i-0bbb33334444bbb02.StartInstances  [SKIPPED]
+  the previous value of StartInstances is not proven
+
+chn-f1f79259729d  i-0ddd77778888ddd04.instanceType  [DRY_RUN]
+  would restore 't3.micro'; nothing was called (pass --confirm to apply)
+  would call ec2:StopInstances  # EC2 rejects a change to instanceType on a running instance
+  would call ec2:ModifyInstanceAttribute
+  would call ec2:StartInstances  # only if the instance is running when the revert starts
+  warning    instanceType can only be changed while the instance is stopped, so reverting it stops and restarts the instance; instance-store data is lost and public IPv4 addresses can change
+
+chn-527d2dc2a7b2  i-0bbb33334444bbb02.instanceType  [DRY_RUN]
+  would restore 't3.micro'; nothing was called (pass --confirm to apply)
+  would call ec2:StopInstances  # EC2 rejects a change to instanceType on a running instance
+  would call ec2:ModifyInstanceAttribute
+  would call ec2:StartInstances  # only if the instance is running when the revert starts
+  warning    instanceType can only be changed while the instance is stopped, so reverting it stops and restarts the instance; instance-store data is lost and public IPv4 addresses can change
+
+chn-b3a0d78a0d04  i-0ddd77778888ddd04.StopInstances  [SKIPPED]
+  the previous value of StopInstances is not proven
+
+chn-a7dd42ba96c6  i-0bbb33334444bbb02.StopInstances  [SKIPPED]
+  the previous value of StopInstances is not proven
+
+chn-b9812a206a7e  i-0ddd77778888ddd04.RunInstances  [SKIPPED]
+  the previous value of RunInstances is not proven
+
+chn-fa6234443885  i-0bbb33334444bbb02.RunInstances  [SKIPPED]
+  the previous value of RunInstances is not proven
+
+chn-3e0a497d95e5  i-0ccc55556666ccc03.RunInstances  [SKIPPED]
+  the previous value of RunInstances is not proven
+
+chn-ec47c5a04acc  i-0eee99990000eee05.RunInstances  [SKIPPED]
+  the previous value of RunInstances is not proven
+
+chn-893e1059451b  rewind-demo-payments-260923202643.CreateDBInstance  [SKIPPED]
+  the previous value of CreateDBInstance is not proven
+
+chn-34fff7022179  arn:aws:lambda:us-west-1:111122223333:function:rewind-demo-checkout-260923202643:live.CreateAlias20150331  [SKIPPED]
+  the previous value of CreateAlias20150331 is not proven
+
+chn-1b8318c6a57f  rewind-demo-checkout-260923202643.CreateFunction20150331  [SKIPPED]
+  the previous value of CreateFunction20150331 is not proven
+
+Re-run with --confirm to apply. Live state is re-checked immediately before each field is touched, so a conflict that appears in the meantime still stops that field.
+
+(26-09-23 21:00:37) <0> [/home/alice]
+dev-dsk-alice-2c-0000000000 % rewind revert /tmp/p.json --confirm --log /tmp/revert.json
+plan       : /tmp/p.json
+mode       : APPLIED
+region     : us-west-1
+started    : 2026-09-23T21:00:56.233676+00:00
+fields     : 28  (newest change reverted first)
+outcomes   : REVERTED=4  SUBMITTED=1  SKIPPED=20  FAILED=3
+
+RESOURCE                      FIELD                     WAS       TARGET    NOW       OUTCOME
+----------------------------  ------------------------  --------  --------  --------  ---------
+i-0fff11112222fff06           monitoring                enabled   disabled  disabled  REVERTED
+i-0aaa11112222aaa01           monitoring                enabled   disabled  disabled  FAILED
+rewind-demo-payments-260923…  multiAZ                   true      false     false     SUBMITTED
+rewind-demo-payments-260923…  allowMajorVersionUpgrade  ?         ?         ?         SKIPPED
+rewind-demo-checkout-260923…  provisionedConcurrency    1         NONE      NONE      REVERTED
+i-0aaa11112222aaa01           StartInstances            ?         ?         ?         SKIPPED
+i-0fff11112222fff06           StartInstances            ?         ?         ?         SKIPPED
+i-0aaa11112222aaa01           instanceType              t3.small  t3.micro  t3.micro  REVERTED
+i-0fff11112222fff06           instanceType              t3.small  t3.micro  t3.micro  REVERTED
+i-0aaa11112222aaa01           StopInstances             ?         ?         ?         SKIPPED
+i-0fff11112222fff06           StopInstances             ?         ?         ?         SKIPPED
+i-0eee99990000eee05           TerminateInstances        ?         ?         ?         SKIPPED
+i-0ccc55556666ccc03           TerminateInstances        ?         ?         ?         SKIPPED
+i-0ddd77778888ddd04           TerminateInstances        ?         ?         ?         SKIPPED
+i-0bbb33334444bbb02           TerminateInstances        ?         ?         ?         SKIPPED
+i-0ddd77778888ddd04           StartInstances            ?         ?         ?         SKIPPED
+i-0bbb33334444bbb02           StartInstances            ?         ?         ?         SKIPPED
+i-0ddd77778888ddd04           instanceType              t3.small  t3.micro  ?         FAILED
+i-0bbb33334444bbb02           instanceType              t3.small  t3.micro  ?         FAILED
+i-0ddd77778888ddd04           StopInstances             ?         ?         ?         SKIPPED
+i-0bbb33334444bbb02           StopInstances             ?         ?         ?         SKIPPED
+i-0ddd77778888ddd04           RunInstances              ?         ?         ?         SKIPPED
+i-0bbb33334444bbb02           RunInstances              ?         ?         ?         SKIPPED
+i-0ccc55556666ccc03           RunInstances              ?         ?         ?         SKIPPED
+i-0eee99990000eee05           RunInstances              ?         ?         ?         SKIPPED
+rewind-demo-payments-260923…  CreateDBInstance          ?         ?         ?         SKIPPED
+arn:aws:lambda:us-west-1:18…  CreateAlias20150331       ?         ?         ?         SKIPPED
+rewind-demo-checkout-260923…  CreateFunction20150331    ?         ?         ?         SKIPPED
+
+Details
+=======
+
+chn-665d0e86880e  i-0fff11112222fff06.monitoring  [REVERTED]
+  restored 'disabled' and confirmed it
+  called     ec2:UnmonitorInstances
+
+chn-18af3316d78f  i-0aaa11112222aaa01.monitoring  [FAILED]
+  the revert was issued but the field does not read 'disabled'
+  called     ec2:UnmonitorInstances
+
+chn-61f9005b0834  rewind-demo-payments-260923202643.multiAZ  [SUBMITTED]
+  AWS accepted the change but it has not settled yet; re-run to poll it
+  called     rds:ModifyDBInstance
+
+chn-1df9abe06b3a  rewind-demo-payments-260923202643.allowMajorVersionUpgrade  [SKIPPED]
+  the previous value of allowMajorVersionUpgrade is not proven
+
+chn-b6b1765a76ce  rewind-demo-checkout-260923202643:live.provisionedConcurrency  [REVERTED]
+  restored 'NONE' and confirmed it
+  called     lambda:DeleteProvisionedConcurrencyConfig
+
+chn-76b5a43277a6  i-0aaa11112222aaa01.StartInstances  [SKIPPED]
+  the previous value of StartInstances is not proven
+
+chn-57b94f12cd14  i-0fff11112222fff06.StartInstances  [SKIPPED]
+  the previous value of StartInstances is not proven
+
+chn-91174b46698c  i-0aaa11112222aaa01.instanceType  [REVERTED]
+  restored 't3.micro' and confirmed it
+  called     ec2:StopInstances
+  called     ec2:ModifyInstanceAttribute
+  called     ec2:StartInstances
+  warning    instanceType can only be changed while the instance is stopped, so reverting it stops and restarts the instance; instance-store data is lost and public IPv4 addresses can change
+
+chn-dc12a435024b  i-0fff11112222fff06.instanceType  [REVERTED]
+  restored 't3.micro' and confirmed it
+  called     ec2:StopInstances
+  called     ec2:ModifyInstanceAttribute
+  called     ec2:StartInstances
+  warning    instanceType can only be changed while the instance is stopped, so reverting it stops and restarts the instance; instance-store data is lost and public IPv4 addresses can change
+
+chn-3b99ba2cde8e  i-0aaa11112222aaa01.StopInstances  [SKIPPED]
+  the previous value of StopInstances is not proven
+
+chn-0f97fd72eb71  i-0fff11112222fff06.StopInstances  [SKIPPED]
+  the previous value of StopInstances is not proven
+
+chn-a8d5011602ac  i-0eee99990000eee05.TerminateInstances  [SKIPPED]
+  the previous value of TerminateInstances is not proven
+
+chn-26b5a190fddb  i-0ccc55556666ccc03.TerminateInstances  [SKIPPED]
+  the previous value of TerminateInstances is not proven
+
+chn-5f5f7d327d8f  i-0ddd77778888ddd04.TerminateInstances  [SKIPPED]
+  the previous value of TerminateInstances is not proven
+
+chn-3ffded560190  i-0bbb33334444bbb02.TerminateInstances  [SKIPPED]
+  the previous value of TerminateInstances is not proven
+
+chn-d7bc27a5a9af  i-0ddd77778888ddd04.StartInstances  [SKIPPED]
+  the previous value of StartInstances is not proven
+
+chn-4da4eb4f2ff6  i-0bbb33334444bbb02.StartInstances  [SKIPPED]
+  the previous value of StartInstances is not proven
+
+chn-f1f79259729d  i-0ddd77778888ddd04.instanceType  [FAILED]
+  the AWS call failed: ClientError: An error occurred (IncorrectInstanceState) when calling the StopInstances operation: This instance 'i-0ddd77778888ddd04' is not in a state from which it can be stopped.
+
+chn-527d2dc2a7b2  i-0bbb33334444bbb02.instanceType  [FAILED]
+  the AWS call failed: ClientError: An error occurred (IncorrectInstanceState) when calling the StopInstances operation: This instance 'i-0bbb33334444bbb02' is not in a state from which it can be stopped.
+
+chn-b3a0d78a0d04  i-0ddd77778888ddd04.StopInstances  [SKIPPED]
+  the previous value of StopInstances is not proven
+
+chn-a7dd42ba96c6  i-0bbb33334444bbb02.StopInstances  [SKIPPED]
+  the previous value of StopInstances is not proven
+
+chn-b9812a206a7e  i-0ddd77778888ddd04.RunInstances  [SKIPPED]
+  the previous value of RunInstances is not proven
+
+chn-fa6234443885  i-0bbb33334444bbb02.RunInstances  [SKIPPED]
+  the previous value of RunInstances is not proven
+
+chn-3e0a497d95e5  i-0ccc55556666ccc03.RunInstances  [SKIPPED]
+  the previous value of RunInstances is not proven
+
+chn-ec47c5a04acc  i-0eee99990000eee05.RunInstances  [SKIPPED]
+  the previous value of RunInstances is not proven
+
+chn-893e1059451b  rewind-demo-payments-260923202643.CreateDBInstance  [SKIPPED]
+  the previous value of CreateDBInstance is not proven
+
+chn-34fff7022179  arn:aws:lambda:us-west-1:111122223333:function:rewind-demo-checkout-260923202643:live.CreateAlias20150331  [SKIPPED]
+  the previous value of CreateAlias20150331 is not proven
+
+chn-1b8318c6a57f  rewind-demo-checkout-260923202643.CreateFunction20150331  [SKIPPED]
+  the previous value of CreateFunction20150331 is not proven
+
+5 field(s) still need attention:
+  i-0aaa11112222aaa01          monitoring             FAILED
+  rewind-demo-payments-260923202643 multiAZ                SUBMITTED
+  rewind-demo-payments-260923202643 allowMajorVersionUpgrade SKIPPED
+  i-0ddd77778888ddd04          instanceType           FAILED
+  i-0bbb33334444bbb02          instanceType           FAILED
+
+19 change(s) reported but not revertible - CloudTrail records no value for them, so there is nothing to restore:
+  i-0aaa11112222aaa01          StartInstances
+  i-0fff11112222fff06          StartInstances
+  i-0aaa11112222aaa01          StopInstances
+  i-0fff11112222fff06          StopInstances
+  i-0eee99990000eee05          TerminateInstances
+  i-0ccc55556666ccc03          TerminateInstances
+  i-0ddd77778888ddd04          TerminateInstances
+  i-0bbb33334444bbb02          TerminateInstances
+  i-0ddd77778888ddd04          StartInstances
+  i-0bbb33334444bbb02          StartInstances
+  i-0ddd77778888ddd04          StopInstances
+  i-0bbb33334444bbb02          StopInstances
+  i-0ddd77778888ddd04          RunInstances
+  i-0bbb33334444bbb02          RunInstances
+  i-0ccc55556666ccc03          RunInstances
+  i-0eee99990000eee05          RunInstances
+  rewind-demo-payments-260923202643 CreateDBInstance
+  arn:aws:lambda:us-west-1:111122223333:function:rewind-demo-checkout-260923202643:live CreateAlias20150331
+  rewind-demo-checkout-260923202643 CreateFunction20150331
+Log written to /tmp/revert.json
+
+(26-09-23 21:02:21) <0> [/home/alice]
+dev-dsk-alice-2c-0000000000 %
+
+(26-09-23 21:30:28) <0> [/home/alice]
+dev-dsk-alice-2c-0000000000 % rewind diff /tmp/p.json
+plan       : /tmp/p.json
+generated  : 2026-09-23T20:59:57+00:00  by identity alice-DevAccount in us-west-1
+checked    : 2026-09-23T21:37:35.938138+00:00
+fields     : 28
+verdicts   : ALREADY_REVERTED=6  UNREADABLE=2  UNCHECKABLE=20
+drift      : none - 6 of 28 field(s) compared, all still as the session left them
+
+RESOURCE                      FIELD                     WAS       SESSION SET  LIVE NOW  VERDICT
+----------------------------  ------------------------  --------  -----------  --------  ----------------
+rewind-demo-checkout-260923…  CreateFunction20150331    ?         ?            ?         UNCHECKABLE
+arn:aws:lambda:us-west-1:18…  CreateAlias20150331       ?         ?            ?         UNCHECKABLE
+rewind-demo-payments-260923…  CreateDBInstance          ?         ?            ?         UNCHECKABLE
+i-0eee99990000eee05           RunInstances              ?         ?            ?         UNCHECKABLE
+i-0ccc55556666ccc03           RunInstances              ?         ?            ?         UNCHECKABLE
+i-0bbb33334444bbb02           RunInstances              ?         ?            ?         UNCHECKABLE
+i-0ddd77778888ddd04           RunInstances              ?         ?            ?         UNCHECKABLE
+i-0bbb33334444bbb02           StopInstances             ?         ?            ?         UNCHECKABLE
+i-0ddd77778888ddd04           StopInstances             ?         ?            ?         UNCHECKABLE
+i-0bbb33334444bbb02           instanceType              t3.micro  t3.small     ?         UNREADABLE
+i-0ddd77778888ddd04           instanceType              t3.micro  t3.small     ?         UNREADABLE
+i-0bbb33334444bbb02           StartInstances            ?         ?            ?         UNCHECKABLE
+i-0ddd77778888ddd04           StartInstances            ?         ?            ?         UNCHECKABLE
+i-0bbb33334444bbb02           TerminateInstances        ?         ?            ?         UNCHECKABLE
+i-0ddd77778888ddd04           TerminateInstances        ?         ?            ?         UNCHECKABLE
+i-0ccc55556666ccc03           TerminateInstances        ?         ?            ?         UNCHECKABLE
+i-0eee99990000eee05           TerminateInstances        ?         ?            ?         UNCHECKABLE
+i-0aaa11112222aaa01           StopInstances             ?         ?            ?         UNCHECKABLE
+i-0fff11112222fff06           StopInstances             ?         ?            ?         UNCHECKABLE
+i-0fff11112222fff06           instanceType              t3.micro  t3.small     t3.micro  ALREADY_REVERTED
+i-0aaa11112222aaa01           instanceType              t3.micro  t3.small     t3.micro  ALREADY_REVERTED
+i-0aaa11112222aaa01           StartInstances            ?         ?            ?         UNCHECKABLE
+i-0fff11112222fff06           StartInstances            ?         ?            ?         UNCHECKABLE
+rewind-demo-checkout-260923…  provisionedConcurrency    NONE      1            NONE      ALREADY_REVERTED
+rewind-demo-payments-260923…  allowMajorVersionUpgrade  ?         false        ?         UNCHECKABLE
+rewind-demo-payments-260923…  multiAZ                   false     true         false     ALREADY_REVERTED
+i-0aaa11112222aaa01           monitoring                disabled  enabled      disabled  ALREADY_REVERTED
+i-0fff11112222fff06           monitoring                disabled  enabled      disabled  ALREADY_REVERTED
+
+Details
+=======
+
+chn-1b8318c6a57f  rewind-demo-checkout-260923202643.CreateFunction20150331  [UNCHECKABLE]
+  no plugin knows which Describe/Get call reads CreateFunction20150331 on rewind-demo-checkout-260923202643, so drift cannot be checked. The plan still records what changed.
+
+chn-34fff7022179  arn:aws:lambda:us-west-1:111122223333:function:rewind-demo-checkout-260923202643:live.CreateAlias20150331  [UNCHECKABLE]
+  no plugin knows which Describe/Get call reads CreateAlias20150331 on arn:aws:lambda:us-west-1:111122223333:function:rewind-demo-checkout-260923202643:live, so drift cannot be checked. The plan still records what changed.
+
+chn-893e1059451b  rewind-demo-payments-260923202643.CreateDBInstance  [UNCHECKABLE]
+  no plugin knows which Describe/Get call reads CreateDBInstance on rewind-demo-payments-260923202643, so drift cannot be checked. The plan still records what changed.
+
+chn-ec47c5a04acc  i-0eee99990000eee05.RunInstances  [UNCHECKABLE]
+  no plugin knows which Describe/Get call reads RunInstances on i-0eee99990000eee05, so drift cannot be checked. The plan still records what changed.
+
+chn-3e0a497d95e5  i-0ccc55556666ccc03.RunInstances  [UNCHECKABLE]
+  no plugin knows which Describe/Get call reads RunInstances on i-0ccc55556666ccc03, so drift cannot be checked. The plan still records what changed.
+
+chn-fa6234443885  i-0bbb33334444bbb02.RunInstances  [UNCHECKABLE]
+  no plugin knows which Describe/Get call reads RunInstances on i-0bbb33334444bbb02, so drift cannot be checked. The plan still records what changed.
+
+chn-b9812a206a7e  i-0ddd77778888ddd04.RunInstances  [UNCHECKABLE]
+  no plugin knows which Describe/Get call reads RunInstances on i-0ddd77778888ddd04, so drift cannot be checked. The plan still records what changed.
+
+chn-a7dd42ba96c6  i-0bbb33334444bbb02.StopInstances  [UNCHECKABLE]
+  no plugin knows which Describe/Get call reads StopInstances on i-0bbb33334444bbb02, so drift cannot be checked. The plan still records what changed.
+
+chn-b3a0d78a0d04  i-0ddd77778888ddd04.StopInstances  [UNCHECKABLE]
+  no plugin knows which Describe/Get call reads StopInstances on i-0ddd77778888ddd04, so drift cannot be checked. The plan still records what changed.
+
+chn-527d2dc2a7b2  i-0bbb33334444bbb02.instanceType  [UNREADABLE]
+  cannot read i-0bbb33334444bbb02: the instance is terminated, so its remembered value cannot be restored
+
+chn-f1f79259729d  i-0ddd77778888ddd04.instanceType  [UNREADABLE]
+  cannot read i-0ddd77778888ddd04: the instance is terminated, so its remembered value cannot be restored
+
+chn-4da4eb4f2ff6  i-0bbb33334444bbb02.StartInstances  [UNCHECKABLE]
+  no plugin knows which Describe/Get call reads StartInstances on i-0bbb33334444bbb02, so drift cannot be checked. The plan still records what changed.
+
+chn-d7bc27a5a9af  i-0ddd77778888ddd04.StartInstances  [UNCHECKABLE]
+  no plugin knows which Describe/Get call reads StartInstances on i-0ddd77778888ddd04, so drift cannot be checked. The plan still records what changed.
+
+chn-3ffded560190  i-0bbb33334444bbb02.TerminateInstances  [UNCHECKABLE]
+  no plugin knows which Describe/Get call reads TerminateInstances on i-0bbb33334444bbb02, so drift cannot be checked. The plan still records what changed.
+
+chn-5f5f7d327d8f  i-0ddd77778888ddd04.TerminateInstances  [UNCHECKABLE]
+  no plugin knows which Describe/Get call reads TerminateInstances on i-0ddd77778888ddd04, so drift cannot be checked. The plan still records what changed.
+
+chn-26b5a190fddb  i-0ccc55556666ccc03.TerminateInstances  [UNCHECKABLE]
+  no plugin knows which Describe/Get call reads TerminateInstances on i-0ccc55556666ccc03, so drift cannot be checked. The plan still records what changed.
+
+chn-a8d5011602ac  i-0eee99990000eee05.TerminateInstances  [UNCHECKABLE]
+  no plugin knows which Describe/Get call reads TerminateInstances on i-0eee99990000eee05, so drift cannot be checked. The plan still records what changed.
+
+chn-3b99ba2cde8e  i-0aaa11112222aaa01.StopInstances  [UNCHECKABLE]
+  no plugin knows which Describe/Get call reads StopInstances on i-0aaa11112222aaa01, so drift cannot be checked. The plan still records what changed.
+
+chn-0f97fd72eb71  i-0fff11112222fff06.StopInstances  [UNCHECKABLE]
+  no plugin knows which Describe/Get call reads StopInstances on i-0fff11112222fff06, so drift cannot be checked. The plan still records what changed.
+
+chn-76b5a43277a6  i-0aaa11112222aaa01.StartInstances  [UNCHECKABLE]
+  no plugin knows which Describe/Get call reads StartInstances on i-0aaa11112222aaa01, so drift cannot be checked. The plan still records what changed.
+
+chn-57b94f12cd14  i-0fff11112222fff06.StartInstances  [UNCHECKABLE]
+  no plugin knows which Describe/Get call reads StartInstances on i-0fff11112222fff06, so drift cannot be checked. The plan still records what changed.
+
+chn-1df9abe06b3a  rewind-demo-payments-260923202643.allowMajorVersionUpgrade  [UNCHECKABLE]
+  no plugin knows which Describe/Get call reads allowMajorVersionUpgrade on rewind-demo-payments-260923202643, so drift cannot be checked. The plan still records what changed.
+
+Nothing is ready to revert automatically.
+
+(26-09-23 21:37:37) <0> [/home/alice]
+dev-dsk-alice-2c-0000000000 %

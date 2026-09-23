@@ -10,9 +10,11 @@ from __future__ import annotations
 from typing import Any, Dict, FrozenSet, List, Optional, Tuple
 
 from ...domain import Mutation, optional_bool
+from ...errors import ResourceGone
 from ...trail import CloudTrailEvent, dig, instance_ids, items_of
 from ..base import BaseHandler
 from ..protocols import performed, step
+from ._ec2_power import TERMINAL_STATES
 
 MONITOR = "MonitorInstances"
 UNMONITOR = "UnmonitorInstances"
@@ -45,6 +47,8 @@ class Ec2DetailedMonitoringOperation(BaseHandler):
     mutating_event_names = frozenset({MONITOR, UNMONITOR})
     relevant_event_names = frozenset({MONITOR, UNMONITOR, RUN})
     config_resource_type = "AWS::EC2::Instance"
+    #: DescribeInstances lags UnmonitorInstances by a moment; see BaseHandler.read_may_lag.
+    read_may_lag = True
 
     def claimed_paths(self, event: CloudTrailEvent) -> FrozenSet[Tuple[str, ...]]:
         # The value is encoded in the event name, not in a parameter, so nothing in
@@ -95,6 +99,15 @@ class Ec2DetailedMonitoringOperation(BaseHandler):
             for instance in reservation.get("Instances", []):
                 if instance.get("InstanceId") != resource_id:
                     continue
+                # The same response already carries the power state, so refusing a
+                # terminated instance costs nothing here. It answers with the monitoring
+                # state it had when it died, which is not a value anybody can restore.
+                power = str(dig(instance, "State", "Name", default=""))
+                if power in TERMINAL_STATES:
+                    raise ResourceGone(
+                        "cannot read %s: the instance is %s, so its remembered value "
+                        "cannot be restored" % (resource_id, power)
+                    )
                 state = settle(dig(instance, "Monitoring", "State"))
                 if state is None:
                     raise self.not_readable(resource_id, "no monitoring state reported")

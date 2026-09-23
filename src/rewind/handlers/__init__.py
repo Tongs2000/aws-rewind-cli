@@ -18,6 +18,7 @@ from .protocols import (
     Historian,
     Identified,
     Parser,
+    Verification,
     performed,
     step,
 )
@@ -48,6 +49,7 @@ __all__ = [
     "Historian",
     "Identified",
     "Parser",
+    "Verification",
     "capability_of",
     "get_operation",
     "handler_for",

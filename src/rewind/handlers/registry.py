@@ -16,7 +16,9 @@ from typing import Dict, FrozenSet, List, Optional, Tuple
 from ..trail import CloudTrailEvent
 from ..domain import GENERIC_HANDLER, Capability, Mutation
 from .base import BaseHandler
-from .protocols import MISMATCH, PENDING, VERIFIED, Actuator, performed, step
+from .protocols import (
+    MISMATCH, PENDING, VERIFIED, Actuator, Verification, performed, step,
+)
 from .aws.ec2_detailed_monitoring import Ec2DetailedMonitoringOperation
 from .aws.ec2_instance_attribute import all_attribute_operations
 from .generic.parser import GENERIC, GenericOperation, is_mutating
@@ -155,6 +157,7 @@ __all__ = [
     "PENDING",
     "PLUGINS",
     "VERIFIED",
+    "Verification",
     "get_operation",
     "handler_for",
     "is_mutating",

@@ -16,3 +16,12 @@ class LiveStateError(RewindError):
 
     Deliberately not fatal: one unreadable resource must not stop the rest of a diff.
     """
+
+
+class ResourceGone(LiveStateError):
+    """The resource no longer exists, or is on its way out and will not come back.
+
+    Kept apart from a plain :class:`LiveStateError` because the two mean opposite things to an
+    operator. A read that failed on credentials or throttling is worth retrying; a terminated
+    instance is not, and listing it as work outstanding is a to-do nobody can ever close.
+    """

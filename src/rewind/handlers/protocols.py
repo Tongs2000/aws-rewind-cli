@@ -19,7 +19,9 @@ Every role is a ``Protocol`` with ``runtime_checkable``, so :func:`capability_of
 
 from __future__ import annotations
 
-from typing import Any, Dict, FrozenSet, List, Optional, Protocol, Tuple, runtime_checkable
+from typing import (
+    Any, Dict, FrozenSet, List, NamedTuple, Optional, Protocol, Tuple, runtime_checkable,
+)
 
 from ..domain import Mutation
 from ..trail import CloudTrailEvent
@@ -40,6 +42,17 @@ def step(api: str, params: Dict[str, Any], **extra: Any) -> Dict[str, Any]:
     body: Dict[str, Any] = {"api": api, "params": params}
     body.update({k: v for k, v in extra.items() if v is not None})
     return body
+
+
+class Verification(NamedTuple):
+    """A verification verdict and the value the verdict was based on.
+
+    One read produces both. Reading twice - once to judge, once to display - let a field
+    that settles in a second be judged on the first read and shown from the second.
+    """
+
+    status: str
+    observed: Optional[str]
 
 
 @runtime_checkable
@@ -149,10 +162,18 @@ class Actuator(Protocol):
     ) -> List[Dict[str, Any]]:
         """Issue them. Only reached once live state has been re-checked."""
 
-    def verify_revert(self, clients: Any, resource_id: str, target_value: str) -> str:
-        """VERIFIED, PENDING or MISMATCH.
+    def verify_revert(
+        self, clients: Any, resource_id: str, target_value: str
+    ) -> "Verification":
+        """The verdict **and the value it was reached from**, in one read.
+
+        Returning the observed value is not a convenience: the caller used to read live state
+        a second time to display it, and on a field that settles in a second - EC2 detailed
+        monitoring - the two reads landed either side of the transition. That produced a row
+        saying FAILED, "the field does not read 'disabled'", beside a column reading
+        ``disabled``. One read decides both, or they can disagree.
 
         Stricter than :meth:`read_live_value`, which reports the value a resource is
-        *converging towards*. Verification asks whether it has actually settled there, so
-        an asynchronous change reports PENDING instead of claiming success.
+        *converging towards*. Verification asks whether it has settled there, so an
+        asynchronous change reports PENDING instead of claiming success.
         """

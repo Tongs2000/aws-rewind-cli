@@ -875,7 +875,7 @@ def test_a_valueless_change_is_never_listed_as_work_outstanding(mixed, capsys, t
 
     assert code == EXIT_CONFLICT, "this fixture has fields --set could still rescue"
 
-    attention, _, scope = out.partition("nothing to restore")
+    attention, _, scope = out.partition("nothing an operator can do")
     assert scope, "valueless changes must get their own section"
     assert "StopInstances" in scope, "the valueless change belongs there"
     assert "StopInstances" not in attention.rsplit("still need attention", 1)[-1], (

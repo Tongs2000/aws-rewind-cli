@@ -28,7 +28,7 @@ from typing import Any, Dict, FrozenSet, Optional, Tuple
 from ..domain import FieldRef, Mutation
 from ..errors import LiveStateError
 from ..trail import CloudTrailEvent
-from .protocols import MISMATCH, VERIFIED
+from .protocols import MISMATCH, VERIFIED, Verification
 
 
 class BaseHandler:
@@ -46,6 +46,16 @@ class BaseHandler:
     relevant_event_names: FrozenSet[str] = frozenset()
     #: True when AWS applies the change asynchronously
     asynchronous: bool = False
+    #: True when the write lands immediately but the *read* can lag behind it.
+    #:
+    #: Distinct from :attr:`asynchronous`, which is about AWS still applying the change.
+    #: Here the change is applied and the Describe call simply has not caught up. The two
+    #: are indistinguishable from a single read, so a first miss reports PENDING rather than
+    #: FAILED: "issued, not observed yet". Re-running polls it and settles the question.
+    #:
+    #: Seen live on EC2 detailed monitoring - two reads milliseconds apart returned
+    #: `enabled` then `disabled`, and the revert had in fact worked.
+    read_may_lag: bool = False
     #: AWS Config resource type, when Config records this resource at all
     config_resource_type: Optional[str] = None
 
@@ -99,14 +109,20 @@ class BaseHandler:
         """Extra context to show beside the value. Most fields have none."""
         return {}
 
-    def verify_revert(self, clients: Any, resource_id: str, target_value: str) -> str:
+    def verify_revert(
+        self, clients: Any, resource_id: str, target_value: str
+    ) -> Verification:
         """Did the revert land? Correct for any synchronous field.
 
         Calls ``read_live_value``, which this class does not define - by design. Only a
-        handler that implemented it is ever asked to verify anything.
+        handler that implemented it is ever asked to verify anything. The value read is
+        returned alongside the verdict so the caller never needs a second read; see
+        :class:`~rewind.handlers.protocols.Verification`.
         """
         observed = self.read_live_value(clients, resource_id)  # type: ignore[attr-defined]
-        return VERIFIED if observed == target_value else MISMATCH
+        return Verification(
+            VERIFIED if observed == target_value else MISMATCH, observed
+        )
 
     # -- helpers ------------------------------------------------------------
 

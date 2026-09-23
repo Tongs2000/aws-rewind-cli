@@ -89,12 +89,17 @@ def render_revert(run: RevertRun) -> str:
         # amount of operator effort changes the outcome. Saying otherwise is a false to-do.
         out += [
             "",
-            "%d change(s) reported but not revertible - CloudTrail records no value for "
-            "them, so there is nothing to restore:" % len(out_of_scope),
+            "%d change(s) reported but not revertible, and nothing an operator can do about "
+            "it:" % len(out_of_scope),
         ]
         for result in out_of_scope:
+            why = (
+                "the resource no longer exists"
+                if result.resource_gone
+                else "CloudTrail records no value to restore"
+            )
             out.append(
-                "  %-28s %s"
-                % (result.chain.resource_id, result.chain.field_name)
+                "  %-28s %-22s %s"
+                % (result.chain.resource_id, result.chain.field_name, why)
             )
     return "\n".join(out)

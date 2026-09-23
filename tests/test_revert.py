@@ -487,7 +487,7 @@ def test_the_report_never_calls_an_unrevertable_change_a_to_do(mixed, tmp_path):
 
     text = render_revert(run)
 
-    assert "nothing to restore" in text
+    assert "nothing an operator can do about it" in text
     for result in run.out_of_scope:
         assert result.chain.field_name in text
     if not run.unfinished:
@@ -541,3 +541,320 @@ def test_a_run_whose_only_leftovers_are_valueless_has_no_unfinished_work():
     assert run.unfinished == [], "nothing here is actionable, so nothing is outstanding"
     assert len(run.out_of_scope) == len(plan.chains)
     assert run.to_dict()["unfinished"] == 0
+
+
+# -- one read decides the verdict and the value shown beside it ---------------
+
+
+def test_the_verdict_and_the_value_reported_come_from_one_read():
+    """Live defect: a row read FAILED, "the field does not read 'disabled'", with NOW=disabled.
+
+    ``_verify`` called ``verify_revert`` and then ``read_live_value`` separately. EC2 detailed
+    monitoring settles in about a second, so the two reads landed either side of the
+    transition: judged on the first, displayed from the second. The sibling instance, reverted
+    moments earlier, passed - which is what a race looks like.
+    """
+    from rewind.handlers import MISMATCH, VERIFIED, Verification, get_operation
+
+    plugin = get_operation("SET_EC2_DETAILED_MONITORING")
+    reads = []
+
+    class Settling:
+        """Reports 'enabled' once, then 'disabled' - the transition, deterministically."""
+
+        def client(self, service):
+            return self
+
+        def describe_instances(self, **kwargs):
+            reads.append(kwargs)
+            state = "enabled" if len(reads) == 1 else "disabled"
+            return {
+                "Reservations": [
+                    {
+                        "Instances": [
+                            {
+                                "InstanceId": kwargs["InstanceIds"][0],
+                                "State": {"Name": "running"},
+                                "Monitoring": {"State": state},
+                            }
+                        ]
+                    }
+                ]
+            }
+
+    result = plugin.verify_revert(Settling(), "i-0abc1234", "disabled")
+
+    assert isinstance(result, Verification)
+    assert len(reads) == 1, "verification must not read twice"
+    assert (result.status, result.observed) == (MISMATCH, "enabled"), (
+        "a MISMATCH must report the value it actually saw, not a later one"
+    )
+    assert result.status != VERIFIED
+
+
+def test_a_plugin_on_the_old_verify_contract_is_rejected_clearly():
+    """A bare status string used to be unpacked as characters and blamed on AWS."""
+    from rewind.pipeline.revert import _verification_of
+
+    with pytest.raises(TypeError) as caught:
+        _verification_of(object(), "VERIFIED")
+
+    assert "Verification(status, observed)" in str(caught.value)
+
+
+# -- a resource that no longer exists ----------------------------------------
+
+
+def terminated_world(state="terminated"):
+    """DescribeInstanceAttribute still answers for a dead instance. That is the trap."""
+
+    class Dead:
+        def client(self, service):
+            return self
+
+        def describe_instances(self, **kwargs):
+            return {
+                "Reservations": [
+                    {
+                        "Instances": [
+                            {
+                                "InstanceId": kwargs["InstanceIds"][0],
+                                "State": {"Name": state},
+                                "Monitoring": {"State": "enabled"},
+                            }
+                        ]
+                    }
+                ]
+            }
+
+        def describe_instance_attribute(self, **kwargs):
+            return {"InstanceType": {"Value": "t3.small"}}
+
+        def stop_instances(self, **kwargs):  # pragma: no cover - must never be reached
+            raise AssertionError("a write was issued against a %s instance" % state)
+
+    return Dead()
+
+
+@pytest.mark.parametrize("state", ["terminated", "shutting-down"])
+@pytest.mark.parametrize(
+    "operation_name", ["SET_EC2_INSTANCE_TYPE", "SET_EC2_DETAILED_MONITORING"]
+)
+def test_a_terminated_instance_is_refused_before_any_write(state, operation_name):
+    """Live defect: a revert against two terminated instances reached StopInstances.
+
+    ``diff`` had called both REVERTIBLE with the right value, because
+    ``DescribeInstanceAttribute`` reports the type an instance had when it died. Reading the
+    field is not enough to notice; the power state is.
+    """
+    from rewind.errors import LiveStateError
+    from rewind.handlers import get_operation
+
+    plugin = get_operation(operation_name)
+
+    with pytest.raises(LiveStateError) as caught:
+        plugin.read_live_value(terminated_world(state), "i-0abc1234")
+
+    assert state in str(caught.value)
+    assert "cannot be restored" in str(caught.value)
+
+
+def test_an_instance_that_does_not_exist_at_all_is_refused_too():
+    from rewind.errors import LiveStateError
+    from rewind.handlers import get_operation
+
+    class Missing:
+        def client(self, service):
+            return self
+
+        def describe_instances(self, **kwargs):
+            return {"Reservations": []}
+
+    with pytest.raises(LiveStateError) as caught:
+        get_operation("SET_EC2_INSTANCE_TYPE").read_live_value(Missing(), "i-0gone")
+
+    assert "does not exist" in str(caught.value)
+
+
+def test_a_gone_resource_is_not_listed_as_work_outstanding():
+    """A terminated instance is permanently unactionable, so it is not a to-do.
+
+    Third instance of one pattern, all found by running live: "still need attention" must mean
+    an operator can close it. A read that failed on credentials or throttling qualifies; a
+    resource that no longer exists never will.
+    """
+    from datetime import datetime, timedelta, timezone
+
+    from rewind.domain import Query
+    from rewind.pipeline import Reverter
+    from rewind.pipeline import plan as build_plan
+    from rewind.trail import StaticEventSource, from_lookup_record
+
+    start = datetime(2026, 9, 23, 17, 0, tzinfo=timezone.utc)
+
+    def resize(event_id, minutes, value):
+        return from_lookup_record(
+            {
+                "EventId": event_id,
+                "EventName": "ModifyInstanceAttribute",
+                "CloudTrailEvent": {
+                    "eventID": event_id,
+                    "eventTime": (start + timedelta(minutes=minutes)).isoformat(),
+                    "eventName": "ModifyInstanceAttribute",
+                    "eventSource": "ec2.amazonaws.com",
+                    "awsRegion": "us-west-1",
+                    "readOnly": False,
+                    "userIdentity": {"arn": "arn:aws:sts::1:assumed-role/R/agent"},
+                    "requestParameters": {
+                        "instanceId": "i-0abc1234",
+                        "instanceType": {"value": value},
+                    },
+                    "responseElements": {"_return": True},
+                },
+            }
+        )
+
+    plan = build_plan(
+        source=StaticEventSource([resize("e0", -10, "t3.micro"), resize("e1", 5, "t3.small")]),
+        query=Query(
+            identity="agent",
+            start_time=start,
+            end_time=start + timedelta(hours=1),
+            region="us-west-1",
+        ),
+        now=start + timedelta(hours=1),
+    )
+    chain = next(c for c in plan.chains if c.field_name == "instanceType")
+    assert chain.values_known and chain.anchor.proven, "an otherwise revertible field"
+
+    run = Reverter(clients=terminated_world(), dry_run=False, wait=False).run(
+        plan, now=start + timedelta(hours=1)
+    )
+    result = next(r for r in run.results if r.chain.chain_id == chain.chain_id)
+
+    assert result.outcome is Outcome.SKIPPED
+    assert result.resource_gone is True
+    assert result not in run.unfinished, "nothing closes this; it is not outstanding"
+    assert result in run.out_of_scope
+    assert run.to_dict()["resourcesGone"] == 1
+
+
+def test_a_lagging_read_resolves_on_a_retry_while_a_dead_write_still_fails():
+    """Both halves matter, and one retry separates them.
+
+    A read that lagged the write resolves in milliseconds; a write that silently did nothing
+    never does. Downgrading every miss to "still pending" would have hidden the second case,
+    which is the one an operator most needs to hear about.
+    """
+    from rewind.handlers import MISMATCH, VERIFIED, get_operation
+
+    plugin = get_operation("SET_EC2_DETAILED_MONITORING")
+    assert plugin.read_may_lag is True, "this test is about a lag-prone field"
+
+    class Lagging:
+        """The first read *after* the write still returns the old value. Real behaviour.
+
+        The pre-check read happens before the write, so counting total reads is not enough:
+        the lag has to be relative to the write, which is where it comes from.
+        """
+
+        def __init__(self, ever_lands=True):
+            self.reads = 0
+            self.reads_after_write = 0
+            self.written = False
+            self.ever_lands = ever_lands
+
+        def client(self, service):
+            return self
+
+        def describe_instances(self, **kwargs):
+            self.reads += 1
+            if self.written:
+                self.reads_after_write += 1
+            landed = (
+                self.ever_lands and self.written and self.reads_after_write > 1
+            )
+            return {
+                "Reservations": [
+                    {
+                        "Instances": [
+                            {
+                                "InstanceId": kwargs["InstanceIds"][0],
+                                "State": {"Name": "running"},
+                                "Monitoring": {
+                                    "State": "disabled" if landed else "enabled"
+                                },
+                            }
+                        ]
+                    }
+                ]
+            }
+
+        def unmonitor_instances(self, **kwargs):
+            self.written = True
+            return {}
+
+    lagging = Lagging(ever_lands=True)
+    run = _one_field_revert(plugin, lagging)
+    assert run.outcome is Outcome.REVERTED, "a lag must not be reported as a failure"
+    assert run.observed_after == "disabled"
+    assert lagging.reads_after_write == 2, "exactly one retry, not a loop"
+
+    dead = Lagging(ever_lands=False)
+    run = _one_field_revert(plugin, dead)
+    assert run.outcome is Outcome.FAILED, "a write that did nothing is still a failure"
+    assert run.observed_after == "enabled", "and the value shown is the one it was judged on"
+    assert run.verification == MISMATCH
+    assert VERIFIED  # the constant exists; the point is it was not reached
+
+
+def _one_field_revert(plugin, world):
+    """Run the reverter over a single synthetic monitoring chain."""
+    from datetime import datetime, timedelta, timezone
+
+    from rewind.domain import Query
+    from rewind.pipeline import Reverter
+    from rewind.pipeline import plan as build_plan
+    from rewind.trail import StaticEventSource, from_lookup_record
+
+    start = datetime(2026, 9, 23, 17, 0, tzinfo=timezone.utc)
+
+    def event(event_id, minutes, name):
+        return from_lookup_record(
+            {
+                "EventId": event_id,
+                "EventName": name,
+                "CloudTrailEvent": {
+                    "eventID": event_id,
+                    "eventTime": (start + timedelta(minutes=minutes)).isoformat(),
+                    "eventName": name,
+                    "eventSource": "ec2.amazonaws.com",
+                    "awsRegion": "us-west-1",
+                    "readOnly": False,
+                    "userIdentity": {"arn": "arn:aws:sts::1:assumed-role/R/agent"},
+                    "requestParameters": {
+                        "instancesSet": {"items": [{"instanceId": "i-0abc"}]}
+                    },
+                    "responseElements": {"_return": True},
+                },
+            }
+        )
+
+    plan = build_plan(
+        source=StaticEventSource(
+            [event("e0", -10, "UnmonitorInstances"), event("e1", 5, "MonitorInstances")]
+        ),
+        query=Query(
+            identity="agent",
+            start_time=start,
+            end_time=start + timedelta(hours=1),
+            region="us-west-1",
+        ),
+        now=start + timedelta(hours=1),
+    )
+    chain = next(c for c in plan.chains if c.field_name == "monitoring")
+    assert chain.net_before == "disabled" and chain.net_after == "enabled"
+    run = Reverter(clients=world, dry_run=False, wait=False).run(
+        plan, only=[chain.chain_id], now=start + timedelta(hours=1)
+    )
+    return run.results[0]

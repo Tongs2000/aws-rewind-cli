@@ -13,11 +13,20 @@ from __future__ import annotations
 
 from typing import Any, Dict, List
 
+from ...errors import ResourceGone
 from ...trail import dig
 from ..protocols import performed
 
 #: The only settled state in which a restricted attribute may be modified.
 STOPPED = "stopped"
+
+#: States a resource never comes back from. An instance here still answers
+#: ``DescribeInstanceAttribute`` - it reports the type it had when it died - so reading the
+#: field is not enough to notice. Seen live: a plan built from CloudTrail was reverted
+#: against two terminated instances, ``diff`` called both REVERTIBLE with the right value,
+#: and ``StopInstances`` then failed with IncorrectInstanceState. A resource that no longer
+#: exists is neither drift nor a conflict; it has to be refused before the first write.
+TERMINAL_STATES = ("shutting-down", "terminated")
 
 
 def power_state(clients: Any, instance_id: str) -> str:
@@ -28,6 +37,25 @@ def power_state(clients: Any, instance_id: str) -> str:
             if instance.get("InstanceId") == instance_id:
                 return str(dig(instance, "State", "Name", default=""))
     return ""
+
+
+def ensure_present(clients: Any, instance_id: str) -> str:
+    """The instance's power state, or a LiveStateError if it is gone or on its way out.
+
+    Costs one ``DescribeInstances`` per field read, which is the price of not issuing a write
+    against a resource that no longer exists.
+    """
+    state = power_state(clients, instance_id)
+    if not state:
+        raise ResourceGone(
+            "cannot read %s: the instance does not exist" % instance_id
+        )
+    if state in TERMINAL_STATES:
+        raise ResourceGone(
+            "cannot read %s: the instance is %s, so its remembered value cannot be restored"
+            % (instance_id, state)
+        )
+    return state
 
 
 def modify_while_stopped(

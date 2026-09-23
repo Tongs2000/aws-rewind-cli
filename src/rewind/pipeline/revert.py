@@ -25,9 +25,9 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Sequence
 
 from .diff import Verdict, classify
-from ..errors import LiveStateError
+from ..errors import LiveStateError, ResourceGone
 from ..domain import Capability, iso
-from ..handlers import MISMATCH, PENDING, VERIFIED, get_operation
+from ..handlers import MISMATCH, PENDING, VERIFIED, Verification, get_operation
 from ..domain import Chain, Plan
 
 UTC = timezone.utc
@@ -68,6 +68,8 @@ class ChainRevert:
     precheck_verdict: Optional[Verdict] = None
     #: an aws-cli command for a human, when the tool will not act itself
     manual_command: Optional[str] = None
+    #: True when the resource itself is gone. Not a to-do: nothing closes it.
+    resource_gone: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
         body: Dict[str, Any] = {
@@ -123,7 +125,7 @@ class RevertRun:
         return [
             r
             for r in self.results
-            if r.outcome in UNFINISHED and r.chain.values_known
+            if r.outcome in UNFINISHED and r.chain.values_known and not r.resource_gone
         ]
 
     @property
@@ -132,7 +134,7 @@ class RevertRun:
         return [
             r
             for r in self.results
-            if r.outcome in UNFINISHED and not r.chain.values_known
+            if r.outcome in UNFINISHED and (not r.chain.values_known or r.resource_gone)
         ]
 
     @property
@@ -153,9 +155,27 @@ class RevertRun:
             # one is work outstanding, the other is a change with no value to restore.
             "unfinished": len(self.unfinished),
             "outOfScope": len(self.out_of_scope),
+            "resourcesGone": sum(1 for r in self.results if r.resource_gone),
             "executionOrder": [r.chain.chain_id for r in self.results],
             "results": [r.to_dict() for r in self.results],
         }
+
+
+def _verification_of(operation: Any, result: Any) -> Verification:
+    """Reject a stale plugin loudly instead of mis-reporting it as a failed revert.
+
+    ``verify_revert`` used to return a bare status string. A plugin still doing that would
+    have its return value unpacked as a sequence of characters, raise, be caught by the
+    broad handler around the call, and surface as "the revert could not be verified" - which
+    blames AWS for the plugin author's out-of-date signature.
+    """
+    if isinstance(result, Verification):
+        return result
+    raise TypeError(
+        "%s.verify_revert must return a Verification(status, observed), got %r. "
+        "The observed value is part of the result so the verdict and the value shown "
+        "beside it come from one read." % (type(operation).__name__, result)
+    )
 
 
 def revert_order(
@@ -227,8 +247,11 @@ class Reverter:
         # A fresh read, right now, for this field. Never the plan's or the diff's view.
         live_value: Optional[str] = None
         read_error: Optional[str] = None
+        gone = False
         try:
             live_value = operation.read_live_value(self.clients, chain.resource_id)
+        except ResourceGone as exc:
+            read_error, gone = str(exc), True
         except LiveStateError as exc:
             read_error = str(exc)
         except Exception as exc:  # noqa: BLE001 - one bad resource must not stop the run
@@ -250,6 +273,7 @@ class Reverter:
                 target_value=target,
                 observed_before=live_value,
                 precheck_verdict=precheck.verdict,
+                resource_gone=gone,
             )
 
         assert target is not None  # REVERTIBLE implies a proven anchor
@@ -295,8 +319,13 @@ class Reverter:
         precheck,
     ) -> ChainRevert:
         try:
-            verification = operation.verify_revert(self.clients, chain.resource_id, target)
-            observed_after = operation.read_live_value(self.clients, chain.resource_id)
+            # One read decides the verdict *and* supplies the value reported beside it.
+            # Reading twice let a field that settles in a second - EC2 detailed monitoring -
+            # be judged on the first read and displayed from the second, producing a row that
+            # said FAILED next to the very value it claimed was missing.
+            verification, observed_after = _verification_of(
+                operation, operation.verify_revert(self.clients, chain.resource_id, target)
+            )
         except Exception as exc:  # noqa: BLE001
             return ChainRevert(
                 chain=chain,
@@ -308,6 +337,19 @@ class Reverter:
                 calls=calls,
                 precheck_verdict=precheck.verdict,
             )
+
+        if verification == MISMATCH and getattr(operation, "read_may_lag", False):
+            # One retry, not a reclassification. A read that lagged the write resolves within
+            # milliseconds; a write that silently did nothing - a mis-scoped IAM policy is the
+            # usual cause - never does. So asking twice tells the two apart, and keeps
+            # verification a real check rather than downgrading every miss to "still pending".
+            try:
+                verification, observed_after = _verification_of(
+                    operation,
+                    operation.verify_revert(self.clients, chain.resource_id, target),
+                )
+            except Exception:  # noqa: BLE001 - keep the first, honest answer
+                pass
 
         if verification == VERIFIED:
             outcome, reason = Outcome.REVERTED, "restored %r and confirmed it" % target
@@ -338,8 +380,11 @@ class Reverter:
     ) -> ChainRevert:
         """The field already reads as pre-session. Has it actually settled there?"""
         target = chain.net_before
+        observed = live_value
         try:
-            verification = operation.verify_revert(self.clients, chain.resource_id, target)
+            verification, observed = _verification_of(
+                operation, operation.verify_revert(self.clients, chain.resource_id, target)
+            )
         except Exception as exc:  # noqa: BLE001
             verification = MISMATCH
             note = " (verification failed: %s)" % exc
@@ -353,6 +398,7 @@ class Reverter:
                 reason="a revert is still being applied by AWS; re-run to poll it" + note,
                 target_value=target,
                 observed_before=live_value,
+                observed_after=observed,
                 verification=verification,
                 precheck_verdict=precheck.verdict,
             )
@@ -362,7 +408,7 @@ class Reverter:
             reason=precheck.reason + note,
             target_value=target,
             observed_before=live_value,
-            observed_after=live_value,
+            observed_after=observed,
             verification=verification,
             precheck_verdict=precheck.verdict,
         )

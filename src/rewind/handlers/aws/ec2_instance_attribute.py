@@ -31,7 +31,7 @@ from ...domain import Mutation, bool_str, optional_bool
 from ...trail import CloudTrailEvent, dig, items_of
 from ..base import BaseHandler
 from ..protocols import performed, step
-from ._ec2_power import modify_while_stopped, power_state
+from ._ec2_power import ensure_present, modify_while_stopped, power_state
 
 MODIFY = "ModifyInstanceAttribute"
 RUN = "RunInstances"
@@ -151,6 +151,10 @@ class Ec2InstanceAttributeOperation(BaseHandler):
     # -- live state ---------------------------------------------------------
 
     def read_live_value(self, clients: Any, resource_id: str) -> str:
+        # DescribeInstanceAttribute answers for a terminated instance with the value it had
+        # when it died, so the attribute call alone cannot tell a live resource from a dead
+        # one. This is the cheapest place to find out, and the only one before a write.
+        ensure_present(clients, resource_id)
         response = clients.client("ec2").describe_instance_attribute(
             InstanceId=resource_id, Attribute=self.attribute.name
         )
