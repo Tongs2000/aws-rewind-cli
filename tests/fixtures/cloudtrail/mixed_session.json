@@ -1,0 +1,320 @@
+{
+  "description": "Sanitized CloudTrail records for a session that touches APIs no plugin covers. Account ids, ARNs, event ids, resource ids and times are fabricated. This is the fixture that proves the tool does not presuppose what a session contains: only one of these changes has a plugin, and the rest must still be discovered, chained and given an inverse command.",
+  "identity": "perf-agent",
+  "window": {
+    "startTime": "2026-09-23T10:00:00Z",
+    "endTime": "2026-09-23T10:30:00Z",
+    "region": "us-west-1"
+  },
+  "scenario": {
+    "rewind-demo-db multiAZ": "plugin-backed (AUTO) - the only one",
+    "rewind-demo-db backupRetentionPeriod": "same ModifyDBInstance call, no plugin - must be reported alongside the plugin's field",
+    "rewind-demo-fn timeout": "UpdateFunctionConfiguration, no plugin, with an earlier event in the window carrying the old value - generic chaining end to end",
+    "rewind-demo-fn memorySize": "same call, no earlier value - RECONSTRUCTED only if an anchor turns up, else DISCOVERED",
+    "rewind-demo-bucket versioning": "PutBucketVersioning with an earlier value in the window: the old value IS known, but Put* replaces a whole document so no inverse may be built - RECONSTRUCTED",
+    "i-0ccc000000000000c StopInstances": "no value in requestParameters at all - DISCOVERED only",
+    "i-0ccc000000000000c disableApiTermination": "ModifyInstanceAttribute: disableApiTermination has a plugin, sriovNetSupport does not - one call, two chains, proving a plugin claim does not hide its neighbours"
+  },
+  "events": [
+    {
+      "EventId": "m0000000-0000-4000-8000-00000000m000",
+      "EventName": "PutBucketVersioning",
+      "EventTime": "2026-09-19T09:00:00Z",
+      "Username": "bootstrap-session",
+      "Resources": [
+        {
+          "ResourceType": "AWS::S3::Bucket",
+          "ResourceName": "rewind-demo-bucket"
+        }
+      ],
+      "CloudTrailEvent": {
+        "eventVersion": "1.09",
+        "eventID": "m0000000-0000-4000-8000-00000000m000",
+        "eventTime": "2026-09-19T09:00:00Z",
+        "eventSource": "s3.amazonaws.com",
+        "eventName": "PutBucketVersioning",
+        "awsRegion": "us-west-1",
+        "recipientAccountId": "111122223333",
+        "readOnly": false,
+        "userIdentity": {
+          "type": "AssumedRole",
+          "principalId": "AROAEXAMPLEBOOTSTRAP:bootstrap-session",
+          "arn": "arn:aws:sts::111122223333:assumed-role/PlatformBootstrap/bootstrap-session",
+          "accountId": "111122223333"
+        },
+        "requestParameters": {
+          "bucketName": "rewind-demo-bucket",
+          "VersioningConfiguration": {
+            "Status": "Suspended"
+          }
+        },
+        "responseElements": null
+      }
+    },
+    {
+      "EventId": "m0000001-0000-4000-8000-00000000m001",
+      "EventName": "UpdateFunctionConfiguration20150331v2",
+      "EventTime": "2026-09-18T08:00:00Z",
+      "Username": "bootstrap-session",
+      "Resources": [],
+      "CloudTrailEvent": {
+        "eventVersion": "1.09",
+        "eventID": "m0000001-0000-4000-8000-00000000m001",
+        "eventTime": "2026-09-18T08:00:00Z",
+        "eventSource": "lambda.amazonaws.com",
+        "eventName": "UpdateFunctionConfiguration20150331v2",
+        "awsRegion": "us-west-1",
+        "recipientAccountId": "111122223333",
+        "readOnly": false,
+        "userIdentity": {
+          "type": "AssumedRole",
+          "principalId": "AROAEXAMPLEBOOTSTRAP:bootstrap-session",
+          "arn": "arn:aws:sts::111122223333:assumed-role/PlatformBootstrap/bootstrap-session",
+          "accountId": "111122223333"
+        },
+        "requestParameters": {
+          "functionName": "rewind-demo-fn",
+          "timeout": 3
+        },
+        "responseElements": {
+          "functionName": "rewind-demo-fn",
+          "timeout": 3
+        }
+      }
+    },
+    {
+      "EventId": "m0000002-0000-4000-8000-00000000m002",
+      "EventName": "UpdateFunctionConfiguration20150331v2",
+      "EventTime": "2026-09-23T10:05:00Z",
+      "Username": "perf-agent",
+      "Resources": [],
+      "CloudTrailEvent": {
+        "eventVersion": "1.09",
+        "eventID": "m0000002-0000-4000-8000-00000000m002",
+        "eventTime": "2026-09-23T10:05:00Z",
+        "eventSource": "lambda.amazonaws.com",
+        "eventName": "UpdateFunctionConfiguration20150331v2",
+        "awsRegion": "us-west-1",
+        "recipientAccountId": "111122223333",
+        "readOnly": false,
+        "userIdentity": {
+          "type": "AssumedRole",
+          "principalId": "AROAEXAMPLEPERF:perf-agent",
+          "arn": "arn:aws:sts::111122223333:assumed-role/PerfAgentRole/perf-agent",
+          "accountId": "111122223333"
+        },
+        "requestParameters": {
+          "functionName": "rewind-demo-fn",
+          "timeout": 30,
+          "memorySize": 1024
+        },
+        "responseElements": {
+          "functionName": "rewind-demo-fn",
+          "timeout": 30,
+          "memorySize": 1024
+        }
+      }
+    },
+    {
+      "EventId": "m0000003-0000-4000-8000-00000000m003",
+      "EventName": "ModifyDBInstance",
+      "EventTime": "2026-09-23T10:10:00Z",
+      "Username": "perf-agent",
+      "Resources": [
+        {
+          "ResourceType": "AWS::RDS::DBInstance",
+          "ResourceName": "rewind-demo-db"
+        }
+      ],
+      "CloudTrailEvent": {
+        "eventVersion": "1.09",
+        "eventID": "m0000003-0000-4000-8000-00000000m003",
+        "eventTime": "2026-09-23T10:10:00Z",
+        "eventSource": "rds.amazonaws.com",
+        "eventName": "ModifyDBInstance",
+        "awsRegion": "us-west-1",
+        "recipientAccountId": "111122223333",
+        "readOnly": false,
+        "userIdentity": {
+          "type": "AssumedRole",
+          "principalId": "AROAEXAMPLEPERF:perf-agent",
+          "arn": "arn:aws:sts::111122223333:assumed-role/PerfAgentRole/perf-agent",
+          "accountId": "111122223333"
+        },
+        "requestParameters": {
+          "dBInstanceIdentifier": "rewind-demo-db",
+          "multiAZ": true,
+          "backupRetentionPeriod": 30,
+          "applyImmediately": true
+        },
+        "responseElements": {
+          "dBInstanceIdentifier": "rewind-demo-db",
+          "multiAZ": false,
+          "backupRetentionPeriod": 7,
+          "dBInstanceStatus": "available",
+          "pendingModifiedValues": {
+            "multiAZ": true,
+            "backupRetentionPeriod": 30
+          }
+        }
+      }
+    },
+    {
+      "EventId": "m0000004-0000-4000-8000-00000000m004",
+      "EventName": "PutBucketVersioning",
+      "EventTime": "2026-09-23T10:15:00Z",
+      "Username": "perf-agent",
+      "Resources": [
+        {
+          "ResourceType": "AWS::S3::Bucket",
+          "ResourceName": "rewind-demo-bucket"
+        }
+      ],
+      "CloudTrailEvent": {
+        "eventVersion": "1.09",
+        "eventID": "m0000004-0000-4000-8000-00000000m004",
+        "eventTime": "2026-09-23T10:15:00Z",
+        "eventSource": "s3.amazonaws.com",
+        "eventName": "PutBucketVersioning",
+        "awsRegion": "us-west-1",
+        "recipientAccountId": "111122223333",
+        "readOnly": false,
+        "userIdentity": {
+          "type": "AssumedRole",
+          "principalId": "AROAEXAMPLEPERF:perf-agent",
+          "arn": "arn:aws:sts::111122223333:assumed-role/PerfAgentRole/perf-agent",
+          "accountId": "111122223333"
+        },
+        "requestParameters": {
+          "bucketName": "rewind-demo-bucket",
+          "VersioningConfiguration": {
+            "Status": "Enabled"
+          }
+        },
+        "responseElements": null
+      }
+    },
+    {
+      "EventId": "m0000005-0000-4000-8000-00000000m005",
+      "EventName": "StopInstances",
+      "EventTime": "2026-09-23T10:20:00Z",
+      "Username": "perf-agent",
+      "Resources": [
+        {
+          "ResourceType": "AWS::EC2::Instance",
+          "ResourceName": "i-0ccc000000000000c"
+        }
+      ],
+      "CloudTrailEvent": {
+        "eventVersion": "1.09",
+        "eventID": "m0000005-0000-4000-8000-00000000m005",
+        "eventTime": "2026-09-23T10:20:00Z",
+        "eventSource": "ec2.amazonaws.com",
+        "eventName": "StopInstances",
+        "awsRegion": "us-west-1",
+        "recipientAccountId": "111122223333",
+        "readOnly": false,
+        "userIdentity": {
+          "type": "AssumedRole",
+          "principalId": "AROAEXAMPLEPERF:perf-agent",
+          "arn": "arn:aws:sts::111122223333:assumed-role/PerfAgentRole/perf-agent",
+          "accountId": "111122223333"
+        },
+        "requestParameters": {
+          "instancesSet": {
+            "items": [
+              {
+                "instanceId": "i-0ccc000000000000c"
+              }
+            ]
+          },
+          "force": false
+        },
+        "responseElements": {
+          "instancesSet": {
+            "items": [
+              {
+                "instanceId": "i-0ccc000000000000c",
+                "currentState": {
+                  "code": 64,
+                  "name": "stopping"
+                },
+                "previousState": {
+                  "code": 16,
+                  "name": "running"
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "EventId": "m0000006-0000-4000-8000-00000000m006",
+      "EventName": "ModifyInstanceAttribute",
+      "EventTime": "2026-09-23T10:25:00Z",
+      "Username": "perf-agent",
+      "Resources": [
+        {
+          "ResourceType": "AWS::EC2::Instance",
+          "ResourceName": "i-0ccc000000000000c"
+        }
+      ],
+      "CloudTrailEvent": {
+        "eventVersion": "1.09",
+        "eventID": "m0000006-0000-4000-8000-00000000m006",
+        "eventTime": "2026-09-23T10:25:00Z",
+        "eventSource": "ec2.amazonaws.com",
+        "eventName": "ModifyInstanceAttribute",
+        "awsRegion": "us-west-1",
+        "recipientAccountId": "111122223333",
+        "readOnly": false,
+        "userIdentity": {
+          "type": "AssumedRole",
+          "principalId": "AROAEXAMPLEPERF:perf-agent",
+          "arn": "arn:aws:sts::111122223333:assumed-role/PerfAgentRole/perf-agent",
+          "accountId": "111122223333"
+        },
+        "requestParameters": {
+          "instanceId": "i-0ccc000000000000c",
+          "disableApiTermination": {
+            "value": true
+          },
+          "sriovNetSupport": {
+            "value": "simple"
+          }
+        },
+        "responseElements": {
+          "_return": true
+        }
+      }
+    },
+    {
+      "EventId": "m0000007-0000-4000-8000-00000000m007",
+      "EventName": "DescribeDBInstances",
+      "EventTime": "2026-09-23T10:26:00Z",
+      "Username": "perf-agent",
+      "Resources": [],
+      "CloudTrailEvent": {
+        "eventVersion": "1.09",
+        "eventID": "m0000007-0000-4000-8000-00000000m007",
+        "eventTime": "2026-09-23T10:26:00Z",
+        "eventSource": "rds.amazonaws.com",
+        "eventName": "DescribeDBInstances",
+        "awsRegion": "us-west-1",
+        "recipientAccountId": "111122223333",
+        "readOnly": true,
+        "userIdentity": {
+          "type": "AssumedRole",
+          "principalId": "AROAEXAMPLEPERF:perf-agent",
+          "arn": "arn:aws:sts::111122223333:assumed-role/PerfAgentRole/perf-agent",
+          "accountId": "111122223333"
+        },
+        "requestParameters": {
+          "dBInstanceIdentifier": "rewind-demo-db"
+        },
+        "responseElements": null
+      }
+    }
+  ]
+}

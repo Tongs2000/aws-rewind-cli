@@ -1,0 +1,530 @@
+{
+  "description": "Sanitized CloudTrail LookupEvents records. Account ids, ARNs, event ids, resource ids and times are fabricated. The `CloudTrailEvent` member is kept as a nested object for readability; the loader serialises it to a JSON string exactly as CloudTrail returns it.",
+  "identity": "perf-agent",
+  "window": {
+    "startTime": "2026-09-22T17:20:00Z",
+    "endTime": "2026-09-22T17:30:00Z",
+    "region": "us-west-1"
+  },
+  "scenario": {
+    "i-0aaa000000000000a": "launched inside the window; resized twice in-session, so its chain has two steps and one anchor",
+    "i-0bbb000000000000b": "long-lived, nothing about it inside the window - the CloudTrail 90-day gap case, must be UNKNOWN",
+    "rewind-demo-fn:live": "created inside the window, provisioned concurrency set then raised in-session",
+    "rewind-demo-db": "anchored from the change event's own responseElements, no history needed"
+  },
+  "events": [
+    {
+      "EventId": "h0000001-0000-4000-8000-00000000h001",
+      "EventName": "RunInstances",
+      "EventTime": "2026-09-12T09:00:00Z",
+      "Username": "bootstrap-session",
+      "Resources": [
+        {"ResourceType": "AWS::EC2::Instance", "ResourceName": "i-0aaa000000000000a"}
+      ],
+      "CloudTrailEvent": {
+        "eventVersion": "1.09",
+        "eventID": "h0000001-0000-4000-8000-00000000h001",
+        "eventTime": "2026-09-12T09:00:00Z",
+        "eventSource": "ec2.amazonaws.com",
+        "eventName": "RunInstances",
+        "awsRegion": "us-west-1",
+        "recipientAccountId": "111122223333",
+        "userIdentity": {
+          "type": "AssumedRole",
+          "principalId": "AROAEXAMPLEBOOTSTRAP:bootstrap-session",
+          "arn": "arn:aws:sts::111122223333:assumed-role/PlatformBootstrap/bootstrap-session",
+          "accountId": "111122223333",
+          "sessionContext": {
+            "sessionIssuer": {
+              "type": "Role",
+              "userName": "PlatformBootstrap",
+              "arn": "arn:aws:iam::111122223333:role/PlatformBootstrap"
+            }
+          }
+        },
+        "requestParameters": {
+          "instancesSet": {"items": [{"imageId": "ami-0example1111", "minCount": 1, "maxCount": 1}]},
+          "instanceType": "t3.nano",
+          "monitoring": {"enabled": false}
+        },
+        "responseElements": {
+          "instancesSet": {
+            "items": [
+              {
+                "instanceId": "i-0aaa000000000000a",
+                "instanceType": "t3.nano",
+                "instanceState": {"code": 0, "name": "pending"},
+                "monitoring": {"state": "disabled"}
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "EventId": "h0000002-0000-4000-8000-00000000h002",
+      "EventName": "CreateFunction20150331",
+      "EventTime": "2026-09-12T09:05:00Z",
+      "Username": "bootstrap-session",
+      "Resources": [],
+      "CloudTrailEvent": {
+        "eventVersion": "1.09",
+        "eventID": "h0000002-0000-4000-8000-00000000h002",
+        "eventTime": "2026-09-12T09:05:00Z",
+        "eventSource": "lambda.amazonaws.com",
+        "eventName": "CreateFunction20150331",
+        "awsRegion": "us-west-1",
+        "recipientAccountId": "111122223333",
+        "userIdentity": {
+          "type": "AssumedRole",
+          "principalId": "AROAEXAMPLEBOOTSTRAP:bootstrap-session",
+          "arn": "arn:aws:sts::111122223333:assumed-role/PlatformBootstrap/bootstrap-session",
+          "accountId": "111122223333"
+        },
+        "requestParameters": {
+          "functionName": "rewind-demo-fn",
+          "runtime": "python3.12",
+          "handler": "index.handler"
+        },
+        "responseElements": {"functionName": "rewind-demo-fn", "version": "1"}
+      }
+    },
+    {
+      "EventId": "h0000003-0000-4000-8000-00000000h003",
+      "EventName": "ModifyInstanceAttribute",
+      "EventTime": "2026-09-16T11:00:00Z",
+      "Username": "bootstrap-session",
+      "Resources": [
+        {"ResourceType": "AWS::EC2::Instance", "ResourceName": "i-0aaa000000000000a"}
+      ],
+      "CloudTrailEvent": {
+        "eventVersion": "1.09",
+        "eventID": "h0000003-0000-4000-8000-00000000h003",
+        "eventTime": "2026-09-16T11:00:00Z",
+        "eventSource": "ec2.amazonaws.com",
+        "eventName": "ModifyInstanceAttribute",
+        "awsRegion": "us-west-1",
+        "recipientAccountId": "111122223333",
+        "userIdentity": {
+          "type": "AssumedRole",
+          "principalId": "AROAEXAMPLEBOOTSTRAP:bootstrap-session",
+          "arn": "arn:aws:sts::111122223333:assumed-role/PlatformBootstrap/bootstrap-session",
+          "accountId": "111122223333"
+        },
+        "requestParameters": {
+          "instanceId": "i-0aaa000000000000a",
+          "instanceType": {"value": "t3.micro"}
+        },
+        "responseElements": {"_return": true}
+      }
+    },
+    {
+      "EventId": "h0000004-0000-4000-8000-00000000h004",
+      "EventName": "ModifyInstanceAttribute",
+      "EventTime": "2026-09-18T12:00:00Z",
+      "Username": "bootstrap-session",
+      "Resources": [
+        {"ResourceType": "AWS::EC2::Instance", "ResourceName": "i-0aaa000000000000a"}
+      ],
+      "CloudTrailEvent": {
+        "eventVersion": "1.09",
+        "eventID": "h0000004-0000-4000-8000-00000000h004",
+        "eventTime": "2026-09-18T12:00:00Z",
+        "eventSource": "ec2.amazonaws.com",
+        "eventName": "ModifyInstanceAttribute",
+        "awsRegion": "us-west-1",
+        "recipientAccountId": "111122223333",
+        "userIdentity": {
+          "type": "AssumedRole",
+          "principalId": "AROAEXAMPLEBOOTSTRAP:bootstrap-session",
+          "arn": "arn:aws:sts::111122223333:assumed-role/PlatformBootstrap/bootstrap-session",
+          "accountId": "111122223333"
+        },
+        "requestParameters": {
+          "instanceId": "i-0aaa000000000000a",
+          "disableApiTermination": {"value": true}
+        },
+        "responseElements": {"_return": true}
+      }
+    },
+    {
+      "EventId": "h0000005-0000-4000-8000-00000000h005",
+      "EventName": "ModifyInstanceAttribute",
+      "EventTime": "2026-09-20T13:00:00Z",
+      "Username": "ci-deployer",
+      "Resources": [
+        {"ResourceType": "AWS::EC2::Instance", "ResourceName": "i-0aaa000000000000a"}
+      ],
+      "CloudTrailEvent": {
+        "eventVersion": "1.09",
+        "eventID": "h0000005-0000-4000-8000-00000000h005",
+        "eventTime": "2026-09-20T13:00:00Z",
+        "eventSource": "ec2.amazonaws.com",
+        "eventName": "ModifyInstanceAttribute",
+        "awsRegion": "us-west-1",
+        "recipientAccountId": "111122223333",
+        "errorCode": "Client.UnauthorizedOperation",
+        "errorMessage": "You are not authorized to perform this operation.",
+        "userIdentity": {
+          "type": "AssumedRole",
+          "principalId": "AROAEXAMPLECIDEPLOY:ci-deployer",
+          "arn": "arn:aws:sts::111122223333:assumed-role/CiDeployRole/ci-deployer",
+          "accountId": "111122223333"
+        },
+        "requestParameters": {
+          "instanceId": "i-0aaa000000000000a",
+          "instanceType": {"value": "t3.2xlarge"}
+        },
+        "responseElements": null
+      }
+    },
+    {
+      "EventId": "h0000006-0000-4000-8000-00000000h006",
+      "EventName": "StopInstances",
+      "EventTime": "2026-09-21T08:00:00Z",
+      "Username": "bootstrap-session",
+      "Resources": [
+        {"ResourceType": "AWS::EC2::Instance", "ResourceName": "i-0aaa000000000000a"}
+      ],
+      "CloudTrailEvent": {
+        "eventVersion": "1.09",
+        "eventID": "h0000006-0000-4000-8000-00000000h006",
+        "eventTime": "2026-09-21T08:00:00Z",
+        "eventSource": "ec2.amazonaws.com",
+        "eventName": "StopInstances",
+        "awsRegion": "us-west-1",
+        "recipientAccountId": "111122223333",
+        "userIdentity": {
+          "type": "AssumedRole",
+          "principalId": "AROAEXAMPLEBOOTSTRAP:bootstrap-session",
+          "arn": "arn:aws:sts::111122223333:assumed-role/PlatformBootstrap/bootstrap-session",
+          "accountId": "111122223333"
+        },
+        "requestParameters": {
+          "instancesSet": {"items": [{"instanceId": "i-0aaa000000000000a"}]},
+          "force": false
+        },
+        "responseElements": {
+          "instancesSet": {
+            "items": [
+              {
+                "instanceId": "i-0aaa000000000000a",
+                "currentState": {"code": 64, "name": "stopping"},
+                "previousState": {"code": 16, "name": "running"}
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "EventId": "h0000007-0000-4000-8000-00000000h007",
+      "EventName": "StartInstances",
+      "EventTime": "2026-09-21T08:10:00Z",
+      "Username": "bootstrap-session",
+      "Resources": [
+        {"ResourceType": "AWS::EC2::Instance", "ResourceName": "i-0aaa000000000000a"}
+      ],
+      "CloudTrailEvent": {
+        "eventVersion": "1.09",
+        "eventID": "h0000007-0000-4000-8000-00000000h007",
+        "eventTime": "2026-09-21T08:10:00Z",
+        "eventSource": "ec2.amazonaws.com",
+        "eventName": "StartInstances",
+        "awsRegion": "us-west-1",
+        "recipientAccountId": "111122223333",
+        "userIdentity": {
+          "type": "AssumedRole",
+          "principalId": "AROAEXAMPLEBOOTSTRAP:bootstrap-session",
+          "arn": "arn:aws:sts::111122223333:assumed-role/PlatformBootstrap/bootstrap-session",
+          "accountId": "111122223333"
+        },
+        "requestParameters": {
+          "instancesSet": {"items": [{"instanceId": "i-0aaa000000000000a"}]}
+        },
+        "responseElements": {
+          "instancesSet": {
+            "items": [
+              {
+                "instanceId": "i-0aaa000000000000a",
+                "currentState": {"code": 0, "name": "pending"},
+                "previousState": {"code": 80, "name": "stopped"}
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "EventId": "s0000001-0000-4000-8000-00000000s001",
+      "EventName": "ModifyInstanceAttribute",
+      "EventTime": "2026-09-22T17:21:00Z",
+      "Username": "perf-agent",
+      "Resources": [
+        {"ResourceType": "AWS::EC2::Instance", "ResourceName": "i-0aaa000000000000a"}
+      ],
+      "CloudTrailEvent": {
+        "eventVersion": "1.09",
+        "eventID": "s0000001-0000-4000-8000-00000000s001",
+        "eventTime": "2026-09-22T17:21:00Z",
+        "eventSource": "ec2.amazonaws.com",
+        "eventName": "ModifyInstanceAttribute",
+        "awsRegion": "us-west-1",
+        "recipientAccountId": "111122223333",
+        "userIdentity": {
+          "type": "AssumedRole",
+          "principalId": "AROAEXAMPLEPERF:perf-agent",
+          "arn": "arn:aws:sts::111122223333:assumed-role/PerfAgentRole/perf-agent",
+          "accountId": "111122223333",
+          "sessionContext": {
+            "sessionIssuer": {
+              "type": "Role",
+              "userName": "PerfAgentRole",
+              "arn": "arn:aws:iam::111122223333:role/PerfAgentRole"
+            }
+          }
+        },
+        "requestParameters": {
+          "instanceId": "i-0aaa000000000000a",
+          "instanceType": {"value": "t3.large"}
+        },
+        "responseElements": {"_return": true}
+      }
+    },
+    {
+      "EventId": "s0000002-0000-4000-8000-00000000s002",
+      "EventName": "ModifyInstanceAttribute",
+      "EventTime": "2026-09-22T17:22:30Z",
+      "Username": "perf-agent",
+      "Resources": [
+        {"ResourceType": "AWS::EC2::Instance", "ResourceName": "i-0aaa000000000000a"}
+      ],
+      "CloudTrailEvent": {
+        "eventVersion": "1.09",
+        "eventID": "s0000002-0000-4000-8000-00000000s002",
+        "eventTime": "2026-09-22T17:22:30Z",
+        "eventSource": "ec2.amazonaws.com",
+        "eventName": "ModifyInstanceAttribute",
+        "awsRegion": "us-west-1",
+        "recipientAccountId": "111122223333",
+        "userIdentity": {
+          "type": "AssumedRole",
+          "principalId": "AROAEXAMPLEPERF:perf-agent",
+          "arn": "arn:aws:sts::111122223333:assumed-role/PerfAgentRole/perf-agent",
+          "accountId": "111122223333"
+        },
+        "requestParameters": {
+          "instanceId": "i-0aaa000000000000a",
+          "instanceType": {"value": "t3.small"}
+        },
+        "responseElements": {"_return": true}
+      }
+    },
+    {
+      "EventId": "s0000003-0000-4000-8000-00000000s003",
+      "EventName": "ModifyInstanceAttribute",
+      "EventTime": "2026-09-22T17:23:00Z",
+      "Username": "perf-agent",
+      "Resources": [
+        {"ResourceType": "AWS::EC2::Instance", "ResourceName": "i-0bbb000000000000b"}
+      ],
+      "CloudTrailEvent": {
+        "eventVersion": "1.09",
+        "eventID": "s0000003-0000-4000-8000-00000000s003",
+        "eventTime": "2026-09-22T17:23:00Z",
+        "eventSource": "ec2.amazonaws.com",
+        "eventName": "ModifyInstanceAttribute",
+        "awsRegion": "us-west-1",
+        "recipientAccountId": "111122223333",
+        "userIdentity": {
+          "type": "AssumedRole",
+          "principalId": "AROAEXAMPLEPERF:perf-agent",
+          "arn": "arn:aws:sts::111122223333:assumed-role/PerfAgentRole/perf-agent",
+          "accountId": "111122223333"
+        },
+        "requestParameters": {
+          "instanceId": "i-0bbb000000000000b",
+          "instanceType": {"value": "t3.small"}
+        },
+        "responseElements": {"_return": true}
+      }
+    },
+    {
+      "EventId": "s0000004-0000-4000-8000-00000000s004",
+      "EventName": "MonitorInstances",
+      "EventTime": "2026-09-22T17:24:00Z",
+      "Username": "perf-agent",
+      "Resources": [
+        {"ResourceType": "AWS::EC2::Instance", "ResourceName": "i-0aaa000000000000a"},
+        {"ResourceType": "AWS::EC2::Instance", "ResourceName": "i-0bbb000000000000b"}
+      ],
+      "CloudTrailEvent": {
+        "eventVersion": "1.09",
+        "eventID": "s0000004-0000-4000-8000-00000000s004",
+        "eventTime": "2026-09-22T17:24:00Z",
+        "eventSource": "ec2.amazonaws.com",
+        "eventName": "MonitorInstances",
+        "awsRegion": "us-west-1",
+        "recipientAccountId": "111122223333",
+        "userIdentity": {
+          "type": "AssumedRole",
+          "principalId": "AROAEXAMPLEPERF:perf-agent",
+          "arn": "arn:aws:sts::111122223333:assumed-role/PerfAgentRole/perf-agent",
+          "accountId": "111122223333"
+        },
+        "requestParameters": {
+          "instancesSet": {
+            "items": [
+              {"instanceId": "i-0aaa000000000000a"},
+              {"instanceId": "i-0bbb000000000000b"}
+            ]
+          }
+        },
+        "responseElements": {
+          "instancesSet": {
+            "items": [
+              {"instanceId": "i-0aaa000000000000a", "monitoring": {"state": "pending"}},
+              {"instanceId": "i-0bbb000000000000b", "monitoring": {"state": "pending"}}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "EventId": "s0000005-0000-4000-8000-00000000s005",
+      "EventName": "PutProvisionedConcurrencyConfig",
+      "EventTime": "2026-09-22T17:25:00Z",
+      "Username": "perf-agent",
+      "Resources": [],
+      "CloudTrailEvent": {
+        "eventVersion": "1.09",
+        "eventID": "s0000005-0000-4000-8000-00000000s005",
+        "eventTime": "2026-09-22T17:25:00Z",
+        "eventSource": "lambda.amazonaws.com",
+        "eventName": "PutProvisionedConcurrencyConfig",
+        "awsRegion": "us-west-1",
+        "recipientAccountId": "111122223333",
+        "userIdentity": {
+          "type": "AssumedRole",
+          "principalId": "AROAEXAMPLEPERF:perf-agent",
+          "arn": "arn:aws:sts::111122223333:assumed-role/PerfAgentRole/perf-agent",
+          "accountId": "111122223333"
+        },
+        "requestParameters": {
+          "functionName": "rewind-demo-fn",
+          "qualifier": "live",
+          "provisionedConcurrentExecutions": 1
+        },
+        "responseElements": {
+          "requestedProvisionedConcurrentExecutions": 1,
+          "status": "IN_PROGRESS"
+        }
+      }
+    },
+    {
+      "EventId": "s0000006-0000-4000-8000-00000000s006",
+      "EventName": "PutProvisionedConcurrencyConfig",
+      "EventTime": "2026-09-22T17:26:00Z",
+      "Username": "perf-agent",
+      "Resources": [],
+      "CloudTrailEvent": {
+        "eventVersion": "1.09",
+        "eventID": "s0000006-0000-4000-8000-00000000s006",
+        "eventTime": "2026-09-22T17:26:00Z",
+        "eventSource": "lambda.amazonaws.com",
+        "eventName": "PutProvisionedConcurrencyConfig",
+        "awsRegion": "us-west-1",
+        "recipientAccountId": "111122223333",
+        "userIdentity": {
+          "type": "AssumedRole",
+          "principalId": "AROAEXAMPLEPERF:perf-agent",
+          "arn": "arn:aws:sts::111122223333:assumed-role/PerfAgentRole/perf-agent",
+          "accountId": "111122223333"
+        },
+        "requestParameters": {
+          "functionName": "arn:aws:lambda:us-west-1:111122223333:function:rewind-demo-fn",
+          "qualifier": "live",
+          "provisionedConcurrentExecutions": 5
+        },
+        "responseElements": {
+          "requestedProvisionedConcurrentExecutions": 5,
+          "status": "IN_PROGRESS"
+        }
+      }
+    },
+    {
+      "EventId": "s0000007-0000-4000-8000-00000000s007",
+      "EventName": "ModifyDBInstance",
+      "EventTime": "2026-09-22T17:27:00Z",
+      "Username": "perf-agent",
+      "Resources": [
+        {"ResourceType": "AWS::RDS::DBInstance", "ResourceName": "rewind-demo-db"}
+      ],
+      "CloudTrailEvent": {
+        "eventVersion": "1.09",
+        "eventID": "s0000007-0000-4000-8000-00000000s007",
+        "eventTime": "2026-09-22T17:27:00Z",
+        "eventSource": "rds.amazonaws.com",
+        "eventName": "ModifyDBInstance",
+        "awsRegion": "us-west-1",
+        "recipientAccountId": "111122223333",
+        "userIdentity": {
+          "type": "AssumedRole",
+          "principalId": "AROAEXAMPLEPERF:perf-agent",
+          "arn": "arn:aws:sts::111122223333:assumed-role/PerfAgentRole/perf-agent",
+          "accountId": "111122223333"
+        },
+        "requestParameters": {
+          "dBInstanceIdentifier": "rewind-demo-db",
+          "multiAZ": true,
+          "applyImmediately": true
+        },
+        "responseElements": {
+          "dBInstanceIdentifier": "rewind-demo-db",
+          "multiAZ": false,
+          "dBInstanceStatus": "available",
+          "pendingModifiedValues": {"multiAZ": true}
+        }
+      }
+    },
+    {
+      "EventId": "s0000008-0000-4000-8000-00000000s008",
+      "EventName": "MonitorInstances",
+      "EventTime": "2026-09-22T17:28:00Z",
+      "Username": "ci-deployer",
+      "Resources": [
+        {"ResourceType": "AWS::EC2::Instance", "ResourceName": "i-0ccc000000000000c"}
+      ],
+      "CloudTrailEvent": {
+        "eventVersion": "1.09",
+        "eventID": "s0000008-0000-4000-8000-00000000s008",
+        "eventTime": "2026-09-22T17:28:00Z",
+        "eventSource": "ec2.amazonaws.com",
+        "eventName": "MonitorInstances",
+        "awsRegion": "us-west-1",
+        "recipientAccountId": "111122223333",
+        "userIdentity": {
+          "type": "AssumedRole",
+          "principalId": "AROAEXAMPLECIDEPLOY:ci-deployer",
+          "arn": "arn:aws:sts::111122223333:assumed-role/CiDeployRole/ci-deployer",
+          "accountId": "111122223333",
+          "sessionContext": {
+            "sessionIssuer": {
+              "type": "Role",
+              "userName": "CiDeployRole",
+              "arn": "arn:aws:iam::111122223333:role/CiDeployRole"
+            }
+          }
+        },
+        "requestParameters": {
+          "instancesSet": {"items": [{"instanceId": "i-0ccc000000000000c"}]}
+        },
+        "responseElements": {
+          "instancesSet": {
+            "items": [{"instanceId": "i-0ccc000000000000c", "monitoring": {"state": "pending"}}]
+          }
+        }
+      }
+    }
+  ]
+}

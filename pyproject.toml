@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aws-rewind"
+version = "0.1.0"
+description = "Find what one identity changed in AWS, what it was before, and how to put it back."
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "Apache-2.0"}
+dependencies = ["boto3>=1.28"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+rewind = "rewind.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src", "tests"]
+addopts = "-q"
